@@ -65,6 +65,6 @@ curl -fsSL https://ollama.com | sh
 ollama pull <MODEL_NAME>
 ```
 
-3. Running the Agents
+### 3. Running the Agents
 Refer to the specific agent files (e.g., xxx_agent.py) for execution instructions.
 Each agent launches a simple chatbot interface accessible at [http://127.0.0.1:7932](http://127.0.0.1:7932).
