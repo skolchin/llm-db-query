@@ -1,0 +1,27 @@
+# Common
+click
+pandas
+openpyxl
+sqlalchemy
+psycopg2-binary
+
+# Streamlit
+streamlit
+
+# Yandex GPT
+yandex-ai-studio-sdk[langchain]
+
+# Langchain / Langgraph
+langgraph
+langchain_core
+langchain-community
+langchain_experimental
+langchain-ollama
+langchain-deepseek
+
+# Pydantic AI
+pydantic-ai-slim[openai,logfire,cli,mcp]
+database-pydantic-ai
+
+# Malloy
+# malloy
