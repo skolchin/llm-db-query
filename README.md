@@ -24,19 +24,19 @@ All database operations are encapsulated in **tools**. Agents use these tools to
 The project supports any LLM compatible with the **OpenAI Completions API**. Tested providers include:
 * **[Ollama](https://ollama.com)** (Local)
 * **[DeepSeek](https://deepseek.com)**
-* **[YandexGPT](https://yandex.cloud)**
+* **[YandexGPT](https://yandex.cloud/en/services/yandexgpt)**
 
 > [!IMPORTANT]
 > When using Ollama, ensure you use a model that supports **Function Calling/Tools**. The `gpt-oss:20b` (OpenAI’s open-weighted GPT) is recommended for its reliability in tool usage.
 
 ### Configuration
-Set your parameters in the `.env` file:
+Set your parameters in the `.env` file (create one from `.env.example`):
 
 | Provider | Variables |
 | :--- | :--- |
 | **Ollama** | `OLLAMA_MODEL` (default: `gpt-oss:20b`) |
-| **DeepSeek** | `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL` |
-| **Yandex** | `YANDEX_API_KEY`, `YANDEX_FOLDER_ID`, `YANDEX_MODEL` |
+| **DeepSeek** | `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL` (default: `deepseek-chat`) |
+| **Yandex** | `YANDEX_API_KEY`, `YANDEX_FOLDER_ID`, `YANDEX_MODEL` (default: `yandexgpt`) |
 
 ---
 
