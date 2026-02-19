@@ -15,15 +15,26 @@ import dotenv
 import asyncio
 import logfire
 import logging
+import sqlite3
 from openai import AsyncOpenAI
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.deepseek import DeepSeekProvider
-from pydantic_ai import Agent, FunctionToolset, RunContext, ModelSettings
 from database_pydantic_ai import SQLiteDatabase,SQLDatabaseDeps
-from database_pydantic_ai.types import QueryResult, SchemaInfo, TableInfo
-from typing import Literal, cast
+from database_pydantic_ai.types import (
+    QueryResult,
+    SchemaInfo,
+    TableInfo,
+)
+from pydantic_ai import (
+    Agent,
+    FunctionToolset,
+    RunContext,
+    ModelSettings,
+    ModelRetry
+)
+from typing import cast, Literal, Any
 
 ModelType = Literal['ollama', 'deepseek', 'yandex']
 """ Allowed model types  """
@@ -45,7 +56,7 @@ logfire.configure(
 logger = logging.getLogger(__name__)
 
 # Constants
-DB_FILENAME = './data/titanic.db'
+DB_FILENAME = './data/northwind.db'
 """ SQLite database """
 
 MODEL_SETTINGS = ModelSettings(
@@ -100,14 +111,34 @@ models = {k: m for k, m in all_models.items() if m is not None}
 class SQLiteDatabaseExt(SQLiteDatabase):
     """ Subclassed `SQLiteDatabase` class from `database_pydantic_ai`.
 
-    Establishes connection before executing statements and logs all SQL statements.
+    Additional functionality:
+        - establishes connection before executing statements (enter/exit are not called in web mode)
+        - logs all SQL statements to the logger
+        - ignores `return_md` flag passed to `get_table_info` and `get_schema`
+            because some info is stripped when making markdown
+        - wraps all calls in try ... except to trigger query rewrite upon error
     """
+
     async def execute(self, query, params = None):
         if self._connection is None:
             await self.connect()
             assert self._connection is not None
             await self._connection.set_trace_callback(logger.info) # pyright: ignore[reportGeneralTypeIssues]
-        return await super().execute(query, params)
+
+        try:
+            return await super().execute(query, params)
+        except sqlite3.Error as ex:
+            raise ModelRetry(f'Query execution error: {ex}. Rewrite the query and try again.')
+
+    async def get_schema(self, return_md: bool = False) -> SchemaInfo | str:
+        return await super().get_schema(False)
+
+    async def get_table_info(self, table_name: str, return_md: bool = False) -> TableInfo | str | None:
+        try:
+            return await super().get_table_info(table_name, False)
+        except sqlite3.Error:
+            raise ModelRetry(f'Table {table_name} does not exist. Consider using another query.')
+
 
 db = SQLiteDatabaseExt(DB_FILENAME)
 """ Database instance """
@@ -132,10 +163,10 @@ Your task is to answer to user questions by retrieving data from database while 
 ### Constraints
 * **SELECT only**. No INSERT, UPDATE, DELETE, CREATE, ALTER, DROP.
 * **SQLite functions only** - use only functions supported by SQLite.
+* DO NOT output any SQL statements, query text, or code fences containing SQL.
 * **Always validate the schema** before constructing queries with JOIN.
 * **Never guess** about relationships between tables, rely solely on schema information.
 * Do not ask for permission to execute a query, run it immediately (if you are confident it is correct).
-* Do not include the SQL in the response, return only the data and, if needed, explanations.
 * If `describe_table` returns an error - stop and report the problem (table not found).
 
 ### Schema Validation
@@ -168,7 +199,7 @@ def create_database_toolset_ext(*, id: str | None = None) -> FunctionToolset[SQL
     This is a replica of `database_pydantic_ai.create_database_toolset` function,
     which handles 'dependency missing' problem for web-based agents by using global dependency.
 
-    Tool definitions and functionality are the same as original ones.
+    Tool definitions and functionality are largely the same as original ones.
     """
     toolset = FunctionToolset[SQLDatabaseDeps](id=id)
 
