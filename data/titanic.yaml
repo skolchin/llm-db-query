@@ -1,0 +1,35 @@
+database:
+  title: Titanic Passenger Survival Dataset
+  origin: Kaggle / Department of Biostatistics at Vanderbilt University
+  description: |
+      A famous dataset based on the 1912 RMS Titanic disaster. It contains 
+      demographic and travel details for passengers, specifically used to 
+      determine which factors (like age, gender, or class) led to survival.
+  usage:
+    primary_purposes:
+      - Introduction to [Binary Classification](https://www.kaggle.com/c/titanic) in machine learning.
+      - Teaching Exploratory Data Analysis (EDA) and data visualization.
+      - Practicing feature engineering and handling missing values (e.g., Age/Cabin).
+    common_tasks:
+      - Predicting survival (Survived: 0 or 1) using passenger attributes.
+      - Analyzing the "women and children first" protocol via data.
+      - Investigating socio-economic correlations between ticket class and survival.
+
+  structure:
+    tables:
+      Titanic:
+        description: Single table
+        fields:
+          - PassengerId: Unique identifier for each passenger.
+          - Survived: Survival status (0 = No, 1 = Yes).
+          - Pclass: Passenger Class.
+          - Name: Full name and title (useful for feature extraction).
+          - Sex: Gender (male or female).
+          - Age: Age in years (fractional if less than 1).
+          - SibSp: Number of siblings or spouses aboard.
+          - Parch: Number of parents or children aboard.
+          - Ticket: Ticket number string.
+          - Fare: Amount of money paid for the journey.
+          - Cabin: Cabin number.
+          - Embarked: Port of embarkation (C = Cherbourg, Q = Queenstown, S = Southampton).
+        relationships:

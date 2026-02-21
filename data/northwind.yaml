@@ -1,0 +1,116 @@
+database:
+  title: Northwind Traders
+  origin: Microsoft Corporation
+  description: |
+    A classic sample database representing a fictitious specialty food 
+    export-import company. It serves as a foundational tutorial schema for 
+    small-business ERP systems.
+  
+  usage:
+    primary_purposes:
+      - Demonstrating relational database features in SQL Server and MS Access.
+      - Teaching data modeling, SQL querying, and database normalization.
+      - Providing a realistic dataset for testing business intelligence and reporting tools.
+    common_tasks:
+      - Managing inventory and supplier relationships.
+      - Processing sales orders and customer information.
+      - Tracking employee performance and shipping logistics.
+
+  structure:
+    tables:
+      Customers:
+        description: Store company names, contact details, and locations
+        fields:
+          CustomerID: Unique five-character code based on the customer name.
+          CompanyName: Name of the purchasing company.
+          ContactName: Name of the primary contact person.
+          ContactTitle: Job title of the contact person.
+          Address: Full street address.
+          City: City of residence or operation.
+          Region: State or province.
+          PostalCode: ZIP or postal code.
+          Country: Country of operation.
+
+      Employees:
+        description: Record staff details and their respective territories.
+        fields:
+          EmployeeID: Unique numeric identifier for the staff member.
+          LastName: Employee's last name.
+          FirstName: Employee's first name.
+          Title: Job title (e.g., Sales Representative).
+          ReportsTo: EmployeeID of the manager (self-referencing).
+          BirthDate: Date of birth for age verification.
+          HireDate: Date the employee joined Northwind.
+
+      Orders:
+        description: High-level transaction data including dates and shipping info.
+        fields:
+          OrderID: Unique numeric identifier for the sales order.
+          CustomerID: Link to the customer who placed the order.
+          EmployeeID: Link to the employee who took the order.
+          OrderDate: Date the order was created.
+          RequiredDate: Date by which the customer requested the goods.
+          ShippedDate: Actual date the order left the warehouse.
+          ShipVia: Link to the shipper company used.
+          Freight: Shipping cost charged to the customer.
+
+      OrderDetails:
+        description: Line-item specifics like quantity, price, and discounts.
+        fields:
+          OrderID: Link to the parent order.
+          ProductID: Link to the specific product purchased.
+          UnitPrice: Price of the product at the time of sale.
+          Quantity: Number of units ordered.
+          Discount: Percentage reduction applied to the line item.
+
+      Products:
+        description: Inventory list with unit prices and stock levels.
+        fields:
+          ProductID: Unique numeric identifier for the item.
+          ProductName: Full name of the food or beverage item.
+          SupplierID: Link to the vendor providing the product.
+          CategoryID: Link to the product category.
+          QuantityPerUnit: Description of packaging (e.g., 24 - 12 oz bottles).
+          UnitPrice: Current list price.
+          UnitsInStock: Current inventory level.
+          Discontinued: Flag indicating if the product is no longer sold.
+
+      Suppliers:
+        description: Vendor data for Northwind products.
+        fields:
+          SupplierID: Unique numeric identifier for the vendor.
+          CompanyName: Name of the supplier company.
+          ContactName: Primary contact at the vendor.
+          Phone: Contact phone number.
+          HomePage: URL for the supplier's website.
+
+      Categories:
+        description: Logical groupings for products (e.g., Beverages, Seafood).
+        fields:
+          CategoryID: Unique numeric identifier for the category.
+          CategoryName: Name of the grouping (e.g., Dairy Products).
+          Description: Detailed summary of what the category includes.
+
+      Shippers:
+        descriptions: Information on companies used for delivery.
+        fields:
+          ShipperID: Unique numeric identifier for the shipping company.
+          CompanyName: Name of the carrier (e.g., Speedy Express).
+          Phone: Contact phone number for the carrier.
+
+      Region:
+        fields:
+          RegionID: Unique numeric identifier for a broad geographic area.
+          RegionDescription: Name of the region (e.g., Eastern, Western).
+
+      Territories:
+        fields:
+          TerritoryID: Unique identifier (usually a ZIP code) for a specific sales area.
+          TerritoryDescription: Name of the specific territory.
+          RegionID: Link to the parent geographic region.
+
+      EmployeeTerritories:
+        description: Bridge table for a Many-to-Many relationship with Employees and Territories
+        fields:
+          EmployeeID: Link to the staff member.
+          TerritoryID: Link to the assigned territory.
