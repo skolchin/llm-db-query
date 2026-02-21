@@ -12,28 +12,15 @@
 
 import os
 import dotenv
-import asyncio
 import logfire
 import logging
-import sqlite3
 from openai import AsyncOpenAI
+from pydantic_ai import Agent, ModelSettings
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.deepseek import DeepSeekProvider
-from database_pydantic_ai import SQLiteDatabase,SQLDatabaseDeps
-from database_pydantic_ai.types import (
-    QueryResult,
-    SchemaInfo,
-    TableInfo,
-)
-from pydantic_ai import (
-    Agent,
-    FunctionToolset,
-    RunContext,
-    ModelSettings,
-    ModelRetry
-)
+from database_pydantic_ai import SQLiteDatabase,SQLDatabaseDeps, create_database_toolset
 from typing import cast, Literal, Any
 
 ModelType = Literal['ollama', 'deepseek', 'yandex']
@@ -108,39 +95,7 @@ all_models = {k: get_model(cast(ModelType,k)) for k in ['ollama', 'deepseek', 'y
 models = {k: m for k, m in all_models.items() if m is not None}
 """ LLM models available to agent """
 
-class SQLiteDatabaseExt(SQLiteDatabase):
-    """ Subclassed `SQLiteDatabase` class from `database_pydantic_ai`.
-
-    Additional functionality:
-        - establishes connection before executing statements (enter/exit are not called in web mode)
-        - logs all SQL statements to the logger
-        - ignores `return_md` flag passed to `get_table_info` and `get_schema`
-            because some info is stripped when making markdown
-        - wraps all calls in try ... except to trigger query rewrite upon error
-    """
-
-    async def execute(self, query, params = None):
-        if self._connection is None:
-            await self.connect()
-            assert self._connection is not None
-            await self._connection.set_trace_callback(logger.info) # pyright: ignore[reportGeneralTypeIssues]
-
-        try:
-            return await super().execute(query, params)
-        except sqlite3.Error as ex:
-            raise ModelRetry(f'Query execution error: {ex}. Rewrite the query and try again.')
-
-    async def get_schema(self, return_md: bool = False) -> SchemaInfo | str:
-        return await super().get_schema(False)
-
-    async def get_table_info(self, table_name: str, return_md: bool = False) -> TableInfo | str | None:
-        try:
-            return await super().get_table_info(table_name, False)
-        except sqlite3.Error:
-            raise ModelRetry(f'Table {table_name} does not exist. Consider using another query.')
-
-
-db = SQLiteDatabaseExt(DB_FILENAME)
+db = SQLiteDatabase(DB_FILENAME)
 """ Database instance """
 
 deps = SQLDatabaseDeps(database=db)
@@ -163,11 +118,9 @@ Your task is to answer to user questions by retrieving data from database while 
 ### Constraints
 * **SELECT only**. No INSERT, UPDATE, DELETE, CREATE, ALTER, DROP.
 * **SQLite functions only** - use only functions supported by SQLite.
-* DO NOT output any SQL statements, query text, or code fences containing SQL.
 * **Always validate the schema** before constructing queries with JOIN.
 * **Never guess** about relationships between tables, rely solely on schema information.
 * Do not ask for permission to execute a query, run it immediately (if you are confident it is correct).
-* If `describe_table` returns an error - stop and report the problem (table not found).
 
 ### Schema Validation
 If the user requests data that requires joining tables, follow these steps strictly:
@@ -192,115 +145,7 @@ And invite them to provide the condition manually.
 '''
 """ The system prompt """
 
-def create_database_toolset_ext(*, id: str | None = None) -> FunctionToolset[SQLDatabaseDeps]:
-    """
-    Create a database toolset for AI Agents.
-
-    This is a replica of `database_pydantic_ai.create_database_toolset` function,
-    which handles 'dependency missing' problem for web-based agents by using global dependency.
-
-    Tool definitions and functionality are largely the same as original ones.
-    """
-    toolset = FunctionToolset[SQLDatabaseDeps](id=id)
-
-    @toolset.tool
-    async def list_tables(ctx: RunContext[SQLDatabaseDeps]) -> list[str]:
-        """
-        Get names of all tables in the database to understand available data.
-
-        Returns:
-            List of all table's names.
-        """
-        return await (ctx.deps or deps).database.get_tables()
-
-    @toolset.tool
-    async def get_schema(ctx: RunContext[SQLDatabaseDeps], return_md: bool) -> SchemaInfo | str:
-        """
-        Get an overview of the database schema.
-
-        Returns:
-            List of all tables with their column counts and row counts.
-        """
-        return await (ctx.deps or deps).database.get_schema(return_md=return_md)
-
-    @toolset.tool
-    async def describe_table(
-        ctx: RunContext[SQLDatabaseDeps], table_name: str
-    ) -> TableInfo | str | None:
-        """
-        Get detailed information about a specific table.
-
-        Args:
-            table_name: Name of the table to describe.
-
-        Returns:
-            Table structure including columns, types, constraints, and foreign keys.
-        """
-        return await (ctx.deps or deps).database.get_table_info(table_name)
-
-    @toolset.tool
-    async def explain_query(ctx: RunContext[SQLDatabaseDeps], sql_query: str) -> str:
-        """
-        Get the execution plan for a SQL query without executing it.
-
-        Args:
-            sql_query: The SQL query to analyze.
-
-        Returns:
-            Query execution plan showing how the database would process the query.
-
-        Use this to:
-            - Understand query performance
-            - Identify missing indexes
-            - Optimize slow queries
-        """
-        return await (ctx.deps or deps).database.explain(sql_query)
-
-    @toolset.tool
-    async def query(
-        ctx: RunContext[SQLDatabaseDeps], sql_query: str, max_rows: int | None = None
-    ) -> QueryResult:
-        """
-        Execute a SQL query and return the results.
-
-        Args:
-            sql_query: SQL query to be executed.
-            max_rows: Maximum number of rows to be returned (default: 100)
-
-        Returns:
-            QueryResults object with queried data.
-
-        Example:
-            query("SELECT id, name FROM users WHERE is_banned = true;", max_rows=10)
-        """
-        try:
-            result = await asyncio.wait_for(
-                (ctx.deps or deps).database.execute(sql_query), timeout=(ctx.deps or deps).query_timeout
-            )
-
-        except asyncio.TimeoutError:
-            return QueryResult(
-                columns=[],
-                rows=[],
-                row_count=0,
-                execution_time_ms=0,  # indicate max wait with `0`
-            )
-
-        limit = max_rows or (ctx.deps or deps).max_rows
-
-        if len(result.rows) > limit:
-            result = QueryResult(
-                columns=result.columns,
-                rows=result.rows[:limit],
-                row_count=min(result.row_count, limit),
-                execution_time_ms=result.execution_time_ms,
-            )
-
-        return result
-
-    return toolset
-
-toolset = create_database_toolset_ext()
+toolset = create_database_toolset(deps=deps)
 """ The toolset """
 
 agent = Agent(

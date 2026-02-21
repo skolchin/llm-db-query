@@ -1,0 +1,3 @@
+[submodule "database-pydantic-ai"]
+	path = database-pydantic-ai
+	url = https://github.com/skolchin/database-pydantic-ai.git

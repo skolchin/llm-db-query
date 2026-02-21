@@ -21,7 +21,13 @@ langchain-deepseek
 
 # Pydantic AI
 pydantic-ai-slim[openai,logfire,cli,mcp]
-database-pydantic-ai
+# database-pydantic-ai
+database-pydantic-ai @ git+https://github.com/skolchin/database-pydantic-ai.git
 
 # Malloy
 # malloy
+
+# Testing
+pytest
+pytest_asyncio
+testcontainers
