@@ -1,33 +1,19 @@
 # Pydantic AI agent.
 #
-# An Agent implementing a native language queries using Pydantic AI framework.
+# An agent implementing a native language queries using Pydantic AI framework.
 #
 # Run as ordinary Python app or with uvicorn command:
 #
 #     uvicorn pyai.sql_agent:app --host 127.0.0.1 --port 7932
 #
-# Either local Ollama or cloud-based Deepseek / YandexGPT LLM's could be used.
-# Models are loaded upon startup (if credentials set) and can be selected from UI.
-#
-
 import os
 import yaml
-import dotenv
 import logging
-from openai import AsyncOpenAI
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.ollama import OllamaProvider
-from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.providers.deepseek import DeepSeekProvider
 from database_pydantic_ai import SQLiteDatabase, SQLDatabaseDeps, create_database_toolset
-from pydantic_ai import Agent, ModelRetry, ModelSettings, RunContext
-from typing import cast, Literal
+from pydantic_ai import Agent, ModelRetry, RunContext
+from typing import cast
 
-ModelType = Literal['ollama', 'deepseek', 'yandex']
-""" Allowed model types  """
-
-# Load environment from .env
-dotenv.load_dotenv()
+from get_model import get_models
 
 # Logging configuration
 logging.basicConfig(
@@ -42,55 +28,7 @@ logging.getLogger('database_pydantic_ai.sql.backends.sqlite').setLevel(logging.D
 DB_FILENAME = './data/northwind.db'
 """ SQLite database """
 
-MODEL_SETTINGS = ModelSettings(
-    temperature=0.1,
-    timeout=60,
-)
-
-# Setup the model
-def get_model(model_type: ModelType) -> OpenAIChatModel | None:
-    """ Return Agent LLM instance """
-
-    match model_type:
-        case 'ollama':
-            # Local Ollama instance provider
-            return OpenAIChatModel(
-                model_name=os.environ.get('OLLAMA_MODEL', 'gpt-oss:20b'),
-                provider= OllamaProvider('http://localhost:11434/v1'),
-            )
-
-        case 'deepseek':
-            # Deepseek provider (does not support Responses API)
-            if not 'DEEPSEEK_API_KEY' in os.environ:
-                return None
-            
-            return OpenAIChatModel(
-                model_name=os.environ.get('DEEPSEEK_MODEL', 'deepseek-chat'),
-                provider=DeepSeekProvider(api_key=os.environ['DEEPSEEK_API_KEY']),
-            )
-
-        case 'yandex':
-            # OpenAI-compatible YandexGPT provider
-            if not 'YANDEX_API_KEY' in os.environ or not 'YANDEX_FOLDER_ID' in os.environ:
-                return None
-
-            client = AsyncOpenAI(
-                api_key=os.environ['YANDEX_API_KEY'],
-                base_url='https://ai.api.cloud.yandex.net/v1',
-                project=os.environ['YANDEX_FOLDER_ID'],
-            )
-            return OpenAIChatModel(
-                model_name=f"gpt://{os.environ['YANDEX_FOLDER_ID']}/{os.environ.get('YANDEX_MODEL', 'yandexgpt')}/latest",
-                provider=OpenAIProvider(openai_client=client),
-            )
-
-        case _:
-            raise ValueError(f'Unknown model type {model_type}')
-
-all_models = {k: get_model(cast(ModelType,k)) for k in ['ollama', 'deepseek', 'yandex']}
-models = {k: m for k, m in all_models.items() if m is not None}
-""" LLM models available to agent """
-
+# Database setup
 db = SQLiteDatabase(DB_FILENAME, echo=True)
 """ Database instance """
 
@@ -110,7 +48,6 @@ Your task is to answer to user questions by retrieving data from database while 
 * `describe_table(table_name: str)` - returns detailed structure of the specified table: columns, data types, NULL/NOT NULL, primary key, foreign keys, indexes.
 * `explain_query(sql: str)` - shows the query execution plan and dependencies.
 * `query(sql: str)` - executes an SQL query (SELECT only) and returns the data.
-* `get_database_overview(kind: OverviewKind)` - retrieves a concise, high‑level overview of the database including database title, origin, description or usage.
 
 ### Constraints
 * **SELECT only**. No INSERT, UPDATE, DELETE, CREATE, ALTER, DROP.
@@ -145,51 +82,52 @@ And invite them to provide the condition manually.
 toolset = create_database_toolset()
 """ The toolset """
 
+models = get_models()
+""" Available models """
+
 agent = Agent(
     models['ollama'],
     toolsets=[toolset],
     deps_type=SQLDatabaseDeps,
     system_prompt=SYSTEM_PROMPT,
-    model_settings=MODEL_SETTINGS,
     builtin_tools=[],
 )
 """ The agent instance """
 
 # Meta tool
-OverviewKind = Literal['title', 'origin', 'description', 'usage', 'structure']
+# OverviewKind = Literal['title', 'origin', 'description', 'usage', 'structure']
+# @agent.tool
+# def get_database_overview(ctx: RunContext[SQLDatabaseDeps], kind: OverviewKind) -> str | None:
+#     """
+#     Retrieve a concise, high‑level overview of the database.
+#     This tool is the first‑stop for anyone who wants to understand what the database is, why it exists, 
+#     and how it’s structured without diving into raw table definitions.
 
-@agent.tool
-def get_database_overview(ctx: RunContext[SQLDatabaseDeps], kind: OverviewKind) -> str | None:
-    """
-    Retrieve a concise, high‑level overview of the database.
-    This tool is the first‑stop for anyone who wants to understand what the database is, why it exists, 
-    and how it’s structured without diving into raw table definitions.
+#     Args:
+#         kind: Overview section kind, one of: 'title', 'origin', 'description', 'usage', 'structure'
 
-    Args:
-        kind: Overview section kind, one of: 'title', 'origin', 'description', 'usage', 'structure'
-
-    Returns:
-        Overview section content
-    """
-    if not isinstance(ctx.deps.database, SQLiteDatabase):
-        return None
+#     Returns:
+#         Overview section content
+#     """
+#     if not isinstance(ctx.deps.database, SQLiteDatabase):
+#         return None
     
-    meta_file, _ = os.path.splitext(cast(SQLiteDatabase, ctx.deps.database).db_path)
-    meta_file += '.yaml'
-    try:
-        with open(meta_file, 'rt') as fp:
-            meta_dict = yaml.safe_load(fp)
+#     meta_file, _ = os.path.splitext(cast(SQLiteDatabase, ctx.deps.database).db_path)
+#     meta_file += '.yaml'
+#     try:
+#         with open(meta_file, 'rt') as fp:
+#             meta_dict = yaml.safe_load(fp)
 
-            if not 'database' in meta_dict:
-                return None
+#             if not 'database' in meta_dict:
+#                 return None
 
-            if (value := meta_dict['database'].get(kind)) is None:
-                raise ModelRetry(f'Cannot find {kind} key in {meta_file}. Use another overview kind and try again.')
+#             if (value := meta_dict['database'].get(kind)) is None:
+#                 raise ModelRetry(f'Cannot find {kind} key in {meta_file}. Use another overview kind and try again.')
             
-            return str(value)
+#             return str(value)
         
-    except FileNotFoundError:
-        return None
+#     except FileNotFoundError:
+#         return None
 
 app = agent.to_web(models=models, deps=deps)
 """ Starlette UI application """

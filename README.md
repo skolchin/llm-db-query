@@ -17,6 +17,8 @@ These agents use LLMs to translate natural language into SQL `SELECT` statements
 
 All database operations are encapsulated in **tools**. Agents use these tools to discover the database structure, inspect table schemas, and manage joins. While effective for simple to moderately complex databases, reliability may vary with highly intricate schemas.
 
+There's also an MCP server and client example, where all the tools are provided by the MCP server and consumed by LLM agent at the client.
+
 ---
 
 ## Model Support
