@@ -13,54 +13,22 @@
 
 import os
 from langgraph.prebuilt import ToolNode
-from langchain_ollama import ChatOllama
-from langchain_deepseek import ChatDeepSeek
 from langchain_core.messages import ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph, MessagesState
 from langchain_community.utilities.sql_database import SQLDatabase
-from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
 from typing import cast, Literal
 
-ModelType = Literal['ollama', 'deepseek', 'yandex']
-""" Allowed model types. Change `MODEL_TYPE` below.  """
+from get_model import ModelType, get_model
 
 # Constants
 DB_FILENAME = './data/titanic.db'
 """ SQLite database """
 
-MODEL_TYPE: ModelType = 'yandex'
+MODEL_TYPE: ModelType = 'ollama'
 """ Model type selection """
-
-# Setup the model
-def get_model(model_type: ModelType) -> BaseChatModel:
-    """ Return Chat LLM instance """
-
-    match model_type:
-        case 'ollama':
-            # Local Ollama instance provider
-            return ChatOllama(model=os.environ.get('OLLAMA_MODEL', 'gpt-oss:20b'))
-
-        case 'deepseek' if 'DEEPSEEK_API_KEY' in os.environ:
-            # Deepseek provider
-            return ChatDeepSeek(
-                model=os.environ.get('DEEPSEEK_MODEL', 'deepseek-chat'),
-                api_key=os.environ['DEEPSEEK_API_KEY'], # type:ignore
-            )
-
-        case 'yandex' if 'YANDEX_API_KEY' in os.environ and 'YANDEX_FOLDER_ID' in os.environ:
-            # YandexGPT provider
-            from yandex_ai_studio_sdk import AIStudio
-            from yandex_ai_studio_sdk.auth import APIKeyAuth
-
-            sdk = AIStudio(folder_id=os.environ['YANDEX_FOLDER_ID'], auth=APIKeyAuth(os.environ['YANDEX_API_KEY']))
-            model = sdk.models.completions(os.environ.get('YANDEX_MODEL', 'yandexgpt')).langchain()
-            return cast(BaseChatModel, model)
-
-        case _:
-            raise ValueError(f'Unknown or unconfigured model {model_type}')
 
 model = get_model('ollama')
 """ LLM instance """

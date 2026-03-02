@@ -8,12 +8,13 @@
 #
 import os
 import yaml
+import asyncio
 import logging
 from database_pydantic_ai import SQLiteDatabase, SQLDatabaseDeps, create_database_toolset
 from pydantic_ai import Agent, ModelRetry, RunContext
 from typing import cast
 
-from get_model import get_models
+from pyai.get_model import get_models
 
 # Logging configuration
 logging.basicConfig(
@@ -89,8 +90,8 @@ agent = Agent(
     models['ollama'],
     toolsets=[toolset],
     deps_type=SQLDatabaseDeps,
-    system_prompt=SYSTEM_PROMPT,
     builtin_tools=[],
+    instructions=SYSTEM_PROMPT,
 )
 """ The agent instance """
 

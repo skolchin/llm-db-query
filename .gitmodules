@@ -1,3 +1,6 @@
 [submodule "database-pydantic-ai"]
 	path = database-pydantic-ai
 	url = https://github.com/skolchin/database-pydantic-ai.git
+[submodule "boring-semantic-layer"]
+	path = boring-semantic-layer
+	url = https://github.com/skolchin/boring-semantic-layer.git

@@ -5,6 +5,11 @@ openpyxl
 sqlalchemy
 psycopg2-binary
 
+# Testing
+pytest
+pytest_asyncio
+testcontainers
+
 # Streamlit
 streamlit
 
@@ -22,12 +27,9 @@ langchain-deepseek
 # Pydantic AI
 pydantic-ai-slim[openai,logfire,cli,mcp]
 # database-pydantic-ai
-database-pydantic-ai @ git+https://github.com/skolchin/database-pydantic-ai.git
+# database-pydantic-ai @ git+https://github.com/skolchin/database-pydantic-ai.git
 
-# Malloy
+# Semantic layer
 # malloy
+# boring-semantic-layer[agent] @ git+https://github.com/skolchin/boring-semantic-layer.git
 
-# Testing
-pytest
-pytest_asyncio
-testcontainers

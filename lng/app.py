@@ -6,9 +6,12 @@
 #
 import os
 import json
+import altair as alt
+import plotly.graph_objects as go
 import streamlit as st
 from uuid import uuid4
 from datetime import datetime
+from langgraph.graph.state import CompiledStateGraph
 from langchain_core.messages.base import BaseMessage
 from langchain_core.messages import (
     HumanMessage,
@@ -18,9 +21,14 @@ from langchain_core.messages import (
     messages_from_dict
 )
 from langchain_core.runnables.config import RunnableConfig
+from boring_semantic_layer.agents.backends.langgraph import LangGraphBackend
 from typing import Generator, List, Dict, Any
 
-from sql_agent import app, SYSTEM_PROMPT, MODEL_TYPE
+# Uncomment to use sql agent
+# from sql_agent import app, SYSTEM_PROMPT, MODEL_TYPE
+
+# Uncomment to use BSL agent
+from bsl_agent import app, SYSTEM_PROMPT, MODEL_TYPE
 
 # Constants
 HISTORY_DIR = ".history"
@@ -101,10 +109,14 @@ def create_new_conversation() -> str:
     """Create a new conversation ID."""
     return str(uuid4())
 
-def get_agent_response(messages: list, conversation_id: str) -> Generator[str, None, None]:
-    """Get agent response with streaming support."""
+
+def get_sql_agent_response(messages: list, conversation_id: str) -> Generator[str | alt.Chart | go.Figure, None, None]:
+    """Get sql agent (actually workflow) response with streaming support."""
+
     config = RunnableConfig({"configurable": {"thread_id": conversation_id}})
-    
+
+    assert isinstance(app, CompiledStateGraph)
+
     for chunk in app.stream(
         {"messages": messages},
         stream_mode="values",
@@ -114,6 +126,76 @@ def get_agent_response(messages: list, conversation_id: str) -> Generator[str, N
         if display_role(message) == 'assistant':
             content = str(message.content)
             yield content
+
+def get_bsl_agent_response(messages: list, conversation_id: str) -> Generator[str | alt.Chart | go.Figure, None, None]:
+    """Get BSL agent response with streaming support """
+
+    # Get the last human message from the messages list
+    last_user_message = None
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            last_user_message = str(msg.content)
+            break
+    
+    if not last_user_message:
+        return
+
+    assert isinstance(app, LangGraphBackend)
+
+    # Callbacks
+    tool_output = ""
+    final_response = ""
+    thinking_buffer = []
+    
+    def on_thinking(text):
+        thinking_buffer.append(text)
+    
+    def on_tool_call(name, args, tokens):
+        pass
+    
+    def on_tool_result(tool_call_id, status, error, content):
+        nonlocal tool_output
+        if content:
+            tool_output = content
+    
+    # Call the BSL agent query method
+    try:
+        tool_output, final_response = app.query(
+            last_user_message,
+            on_tool_call=on_tool_call,
+            on_thinking=on_thinking,
+            on_tool_result=on_tool_result
+        )
+        
+        # Yield any thinking
+        for thought in thinking_buffer:
+            yield thought
+        
+        # Yield the response
+        if final_response:
+            yield final_response
+
+        # If there's a dict tool output, it could be a chart - try to recover and yield result
+        if tool_output:
+            try:
+                js = json.loads(tool_output)
+                # chart = alt.Chart.from_dict(js['chart']['data'])
+                chart = go.Figure(js['chart']['data'])
+                yield chart
+            except (json.JSONDecodeError, KeyError) as ex:
+                print(ex)
+            
+    except Exception as e:
+        yield f"Error: {str(e)}"
+
+def get_agent_response(messages: list, conversation_id: str) -> Generator[str | alt.Chart | go.Figure, None, None]:
+    match app:
+        case CompiledStateGraph():
+            return get_sql_agent_response(messages, conversation_id)
+        case LangGraphBackend():
+            return get_bsl_agent_response(messages, conversation_id)
+        case _:
+            raise ValueError('Uknown app type')
 
 # Streamlit page config
 st.set_page_config(page_title="SQL Database Chatbot", page_icon="🤖", layout="wide")
@@ -220,20 +302,25 @@ if query := st.chat_input(f"Ask a question ({MODEL_TYPE.capitalize()})..."):
         response_generator = get_agent_response(st.session_state.messages, st.session_state.conversation_id)
         try:
             for chunk in response_generator:
-                if isinstance(chunk, str):
-                    full_response += chunk
-                    message_placeholder.markdown(full_response + "▌")
-                    message_placeholder.markdown(full_response)
+                match chunk:
+                    case str():
+                        full_response += chunk
+                        message_placeholder.markdown(full_response + "▌")
+                        message_placeholder.markdown(full_response)
+
+                    case alt.Chart():
+                        st.altair_chart(chunk, width='content')
+
+                    case go.Figure():
+                        st.plotly_chart(chunk, width='content')
+
         except Exception as e:
             full_response = f"Error: {str(e)}"
             message_placeholder.markdown(full_response)
     
-    # The generator returns (response, all_messages) when exhausted
-    # But since we're using streaming, we need to capture the final state
-    config = RunnableConfig({"configurable": {"thread_id": st.session_state.conversation_id}})
-    final_state = app.get_state(config)
-    if final_state and hasattr(final_state, 'values'):
-        st.session_state.messages = final_state.values.get("messages", [])
+    # Add assistant response to messages for display
+    if full_response:
+        st.session_state.messages.append(AIMessage(full_response))
     
     # Save conversation
     save_conversation(st.session_state.conversation_id, st.session_state.messages)
