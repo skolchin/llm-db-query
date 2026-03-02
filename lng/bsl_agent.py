@@ -1,3 +1,22 @@
+# LangChain AI agent.
+#
+# An Agent implementing a native language queries using LangGraph / LangChain framework.
+#
+# Uses Boring Semantic Layer (BSL) abstraction layer. See `data/northwind_bsl.yaml`
+# and /home/kol/kol/llm-db-query/data/northwind_profile.yaml` configuration files.
+#
+# Requires Parquet database files due to SQLite struggles with multi-threading.
+#
+# To run, comment `from sql_agent import app` and uncomment `from bsl_agent import app` in app.py
+# and start application with streamlit:
+#
+# Run it with streamlit:
+#
+#     streamlit run lng/app.py --server.address 127.0.0.1 --server.port 7932
+#
+# Either local Ollama or cloud-based Deepseek / YandexGPT LLM's could be used.
+# Model selection is fixed (see `MODEL_TYPE` below).
+#
 from pathlib import Path
 from boring_semantic_layer.agents.backends.langgraph import LangGraphBackend
 

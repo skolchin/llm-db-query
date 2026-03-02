@@ -1,16 +1,18 @@
-# LangChain AI agent.
+# LangChain SQL AI agent.
 #
 # An Agent implementing a native language queries using LangGraph / LangChain framework.
-# It is probably the oldest, but rather low-level forcing to use some extra utility logic.
 #
-# Run it with streamlit:
+# Uses `SQLDatabaseToolkit` toolset to produce SQL SELECT from user query.
+# Can work with any Sqlite database (see `DB_FILENAME` below).
+#
+# To run, uncomment `from sql_agent import app` and comment `from bsl_agent import app` in app.py
+# and start application with streamlit:
 #
 #     streamlit run lng/app.py --server.address 127.0.0.1 --server.port 7932
 #
 # Either local Ollama or cloud-based Deepseek / YandexGPT LLM's could be used.
-# Model selection is fixed (see `MODEL_TYPE`).
+# Model selection is fixed (see `MODEL_TYPE` below).
 #
-
 import os
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import ToolMessage
