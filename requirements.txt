@@ -7,8 +7,10 @@ psycopg2-binary
 
 # Testing
 pytest
+ruamel.yaml
 pytest_asyncio
 testcontainers
+parametrize_from_file
 
 # Streamlit
 streamlit
@@ -19,10 +21,10 @@ yandex-ai-studio-sdk[langchain]
 # Langchain / Langgraph
 langgraph
 langchain_core
-langchain-community
-langchain_experimental
 langchain-ollama
 langchain-deepseek
+langchain-community
+langchain_experimental
 
 # Pydantic AI
 pydantic-ai-slim[openai,logfire,cli,mcp]

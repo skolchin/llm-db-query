@@ -175,15 +175,18 @@ def get_bsl_agent_response(messages: list, conversation_id: str) -> Generator[st
         if final_response:
             yield final_response
 
-        # If there's a dict tool output, it could be a chart - try to recover and yield result
-        if tool_output:
+        # Check tool output contains a chart definition, if yes - try to recover and yield result
+        if tool_output and '{"total_rows"' in tool_output:
             try:
-                js = json.loads(tool_output)
-                # chart = alt.Chart.from_dict(js['chart']['data'])
-                chart = go.Figure(js['chart']['data'])
-                yield chart
+                js = json.loads(tool_output[tool_output.index('{"total_rows"'):])
+                match js['chart']['backend']:
+                    case 'altair':
+                        yield alt.Chart.from_dict(js['chart']['data'])
+                    case 'plotly':
+                        yield go.Figure(js['chart']['data'])
+                        
             except (json.JSONDecodeError, KeyError) as ex:
-                print(ex)
+                print(f"Error {type(ex)} retrieving chart: {ex}")
             
     except Exception as e:
         yield f"Error: {str(e)}"

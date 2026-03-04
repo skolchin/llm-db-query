@@ -1,0 +1,218 @@
+test_agents:
+- question: List top 5 companies by overall order count
+  query:
+  expected: |
+    [{"Customers.CompanyName":"Save-a-lot Markets","Orders.OrderCount":31},
+     {"Customers.CompanyName":"Ernst Handel","Orders.OrderCount":30},
+     {"Customers.CompanyName":"QUICK-Stop","Orders.OrderCount":28},
+     {"Customers.CompanyName":"Hungry Owl All-Night Grocers","Orders.OrderCount":19},
+     {"Customers.CompanyName":"Folk och fä HB","Orders.OrderCount":19}]
+  aliases:
+    Orders.OrderCount:
+      - Orders.OrdersCount
+
+- question: What is the total revenue generated from each product category in 
+    the year 2016?
+  query: |
+    SELECT
+        c.CategoryName as "Categories.CategoryName",
+        SUM(od.Quantity * od.UnitPrice * (1 - od.Discount)) AS "Categories.TotalRevenue"
+    FROM Categories c
+    JOIN Products p ON c.CategoryID = p.CategoryID
+    JOIN OrderDetails od ON p.ProductID = od.ProductID
+    JOIN Orders o ON od.OrderID = o.OrderID
+    WHERE strftime('%Y', o.OrderDate) = '2016'
+    GROUP BY c.CategoryName
+    ORDER BY "Categories.TotalRevenue" DESC
+  expected: |
+    [{"Categories.CategoryName": "Beverages", "Categories.TotalRevenue": 47919.0},
+    {"Categories.CategoryName": "Dairy Products", "Categories.TotalRevenue": 40980.45},
+    {"Categories.CategoryName": "Confections", "Categories.TotalRevenue": 29685.55},
+    {"Categories.CategoryName": "Meat/Poultry", "Categories.TotalRevenue": 28813.66},
+    {"Categories.CategoryName": "Seafood", "Categories.TotalRevenue": 19391.22},
+    {"Categories.CategoryName": "Condiments", "Categories.TotalRevenue": 17900.38},
+    {"Categories.CategoryName": "Produce", "Categories.TotalRevenue": 13885.78},
+    {"Categories.CategoryName": "Grains/Cereals", "Categories.TotalRevenue": 9507.92}]
+  aliases:
+    Categories.TotalRevenue:
+      - Categories.Revenue
+      - Orders.TotalRevenue
+      - Orders.Revenue
+      - OrderDetails.TotalRevenue
+      - OrderDetails.Revenue
+      - TotalRevenue
+      - Revenue
+
+# - question: Who are the top 5 customers by total spending (including discount) 
+#     in 1997?
+#   query: |
+#     SELECT 
+#         c.CustomerID,
+#         c.CompanyName,
+#         SUM(od.Quantity * od.UnitPrice * (1 - od.Discount)) AS TotalSpent
+#     FROM Customers c
+#     JOIN Orders o ON c.CustomerID = o.CustomerID
+#     JOIN OrderDetails od ON o.OrderID = od.OrderID
+#     WHERE strftime('%Y', o.OrderDate) = '1997'
+#     GROUP BY c.CustomerID, c.CompanyName
+#     ORDER BY TotalSpent DESC
+#     LIMIT 5;
+#   expected: |-
+#     []
+# - question: Which suppliers supply more than 3 products, and what are the total 
+#     number of products they supply and the average price of those products?
+#   query: |
+#     SELECT 
+#         s.SupplierID,
+#         s.CompanyName,
+#         COUNT(p.ProductID) AS ProductCount,
+#         AVG(p.UnitPrice) AS AvgPrice
+#     FROM Suppliers s
+#     JOIN Products p ON s.SupplierID = p.SupplierID
+#     GROUP BY s.SupplierID, s.CompanyName
+#     HAVING COUNT(p.ProductID) > 3
+#     ORDER BY ProductCount DESC;
+#   expected: |-
+#     [{"SupplierID": 7, "CompanyName": "Pavlova, Ltd.", "ProductCount": 5, "AvgPrice": 35.57}, {"SupplierID": 12, "CompanyName": "Plutzer Lebensmittelgroßmärkte AG", "ProductCount": 5, "AvgPrice": 44.678000000000004}, {"SupplierID": 2, "CompanyName": "New Orleans Cajun Delights", "ProductCount": 4, "AvgPrice": 20.35}, {"SupplierID": 8, "CompanyName": "Specialty Biscuits, Ltd.", "ProductCount": 4, "AvgPrice": 28.175}]
+# - question: Which products have never been ordered?
+#   query: |
+#     SELECT 
+#         p.ProductID,
+#         p.ProductName
+#     FROM Products p
+#     LEFT JOIN OrderDetails od ON p.ProductID = od.ProductID
+#     WHERE od.ProductID IS NULL;
+#   expected: |-
+#     []
+# - question: For each customer, show the total number of orders they have placed,
+#     the total amount they have spent (including discount), and the date of their
+#     most recent order.
+#   query: |
+#     SELECT 
+#         c.CustomerID,
+#         c.CompanyName,
+#         COUNT(DISTINCT o.OrderID) AS TotalOrders,
+#         COALESCE(SUM(od.Quantity * od.UnitPrice * (1 - od.Discount)), 0) AS TotalSpent,
+#         MAX(o.OrderDate) AS LastOrderDate
+#     FROM Customers c
+#     LEFT JOIN Orders o ON c.CustomerID = o.CustomerID
+#     LEFT JOIN OrderDetails od ON o.OrderID = od.OrderID
+#     GROUP BY c.CustomerID, c.CompanyName
+#     ORDER BY TotalSpent DESC;
+#   expected: |-
+#     [{"CustomerID": "QUICK", "CompanyName": "QUICK-Stop", "TotalOrders": 28, "TotalSpent": 110277.305, "LastOrderDate": "2018-04-14"}, {"CustomerID": "ERNSH", "CompanyName": "Ernst Handel", "TotalOrders": 30, "TotalSpent": 104874.9785, "LastOrderDate": "2018-05-05"}, {"CustomerID": "SAVEA", "CompanyName": "Save-a-lot Markets", "TotalOrders": 31, "TotalSpent": 104361.95, "LastOrderDate": "2018-05-01"}, {"CustomerID": "RATTC", "CompanyName": "Rattlesnake Canyon Grocery", "TotalOrders": 18, "TotalSpent": 51097.8005, "LastOrderDate": "2018-05-06"}, {"CustomerID": "HUNGO", "CompanyName": "Hungry Owl All-Night Grocers", "TotalOrders": 19, "TotalSpent": 49979.905, "LastOrderDate": "2018-04-30"}, {"CustomerID": "HANAR", "CompanyName": "Hanari Carnes", "TotalOrders": 14, "TotalSpent": 32841.37, "LastOrderDate": "2018-04-27"}, {"CustomerID": "KOENE", "CompanyName": "Königlich Essen", "TotalOrders": 14, "TotalSpent": 30908.384, "LastOrderDate": "2018-04-16"}, {"CustomerID": "FOLKO", "CompanyName": "Folk och fä HB", "TotalOrders": 19, "TotalSpent": 29567.5625, "LastOrderDate": "2018-04-27"}, {"CustomerID": "MEREP", "CompanyName": "Mère Paillarde", "TotalOrders": 13, "TotalSpent": 28872.19, "LastOrderDate": "2017-10-30"}, {"CustomerID": "WHITC", "CompanyName": "White Clover Markets", "TotalOrders": 14, "TotalSpent": 27363.605, "LastOrderDate": "2018-05-01"}, {"CustomerID": "FRANK", "CompanyName": "Frankenversand", "TotalOrders": 15, "TotalSpent": 26656.5595, "LastOrderDate": "2018-04-09"}, {"CustomerID": "QUEEN", "CompanyName": "Queen Cozinha", "TotalOrders": 13, "TotalSpent": 25717.4975, "LastOrderDate": "2018-05-04"}, {"CustomerID": "BERGS", "CompanyName": "Berglunds snabbköp", "TotalOrders": 18, "TotalSpent": 24927.5775, "LastOrderDate": "2018-03-04"}, {"CustomerID": "SUPRD", "CompanyName": "Suprêmes délices", "TotalOrders": 12, "TotalSpent": 24088.78, "LastOrderDate": "2018-04-21"}, {"CustomerID": "PICCO", "CompanyName": "Piccolo und mehr", "TotalOrders": 10, "TotalSpent": 23128.86, "LastOrderDate": "2018-04-27"}, {"CustomerID": "HILAA", "CompanyName": "HILARION-Abastos", "TotalOrders": 18, "TotalSpent": 22768.764, "LastOrderDate": "2018-04-28"}, {"CustomerID": "BONAP", "CompanyName": "Bon app'", "TotalOrders": 17, "TotalSpent": 21963.2525, "LastOrderDate": "2018-05-06"}, {"CustomerID": "BOTTM", "CompanyName": "Bottom-Dollar Markets", "TotalOrders": 14, "TotalSpent": 20801.6, "LastOrderDate": "2018-04-24"}, {"CustomerID": "RICSU", "CompanyName": "Richter Supermarkt", "TotalOrders": 10, "TotalSpent": 19343.779000000002, "LastOrderDate": "2018-05-06"}, {"CustomerID": "LEHMS", "CompanyName": "Lehmanns Marktstand", "TotalOrders": 15, "TotalSpent": 19261.41, "LastOrderDate": "2018-05-05"}, {"CustomerID": "BLONP", "CompanyName": "Blondesddsl père et fils", "TotalOrders": 11, "TotalSpent": 18534.08, "LastOrderDate": "2018-01-12"}, {"CustomerID": "GREAL", "CompanyName": "Great Lakes Food Market", "TotalOrders": 11, "TotalSpent": 18507.45, "LastOrderDate": "2018-04-30"}, {"CustomerID": "SIMOB", "CompanyName": "Simons bistro", "TotalOrders": 7, "TotalSpent": 16817.0975, "LastOrderDate": "2018-05-06"}, {"CustomerID": "LINOD", "CompanyName": "LINO-Delicateses", "TotalOrders": 12, "TotalSpent": 16476.565, "LastOrderDate": "2018-04-21"}, {"CustomerID": "SEVES", "CompanyName": "Seven Seas Imports", "TotalOrders": 9, "TotalSpent": 16215.324999999999, "LastOrderDate": "2018-02-04"}, {"CustomerID": "LILAS", "CompanyName": "LILA-Supermercado", "TotalOrders": 14, "TotalSpent": 16076.6, "LastOrderDate": "2018-05-05"}, {"CustomerID": "VAFFE", "CompanyName": "Vaffeljernet", "TotalOrders": 11, "TotalSpent": 15843.925, "LastOrderDate": "2018-04-02"}, {"CustomerID": "WARTH", "CompanyName": "Wartian Herkku", "TotalOrders": 15, "TotalSpent": 15648.7025, "LastOrderDate": "2018-04-15"}, {"CustomerID": "OLDWO", "CompanyName": "Old World Delicatessen", "TotalOrders": 10, "TotalSpent": 15177.4625, "LastOrderDate": "2018-04-20"}, {"CustomerID": "EASTC", "CompanyName": "Eastern Connection", "TotalOrders": 8, "TotalSpent": 14761.035, "LastOrderDate": "2018-04-28"}, {"CustomerID": "AROUT", "CompanyName": "Around the Horn", "TotalOrders": 13, "TotalSpent": 13390.65, "LastOrderDate": "2018-04-10"}, {"CustomerID": "OTTIK", "CompanyName": "Ottilies Käseladen", "TotalOrders": 10, "TotalSpent": 12496.2, "LastOrderDate": "2018-04-14"}, {"CustomerID": "RICAR", "CompanyName": "Ricardo Adocicados", "TotalOrders": 11, "TotalSpent": 12450.8, "LastOrderDate": "2018-04-29"}, {"CustomerID": "CHOPS", "CompanyName": "Chop-suey Chinese", "TotalOrders": 8, "TotalSpent": 12348.88, "LastOrderDate": "2018-04-22"}, {"CustomerID": "FOLIG", "CompanyName": "Folies gourmandes", "TotalOrders": 5, "TotalSpent": 11666.9, "LastOrderDate": "2017-12-22"}, {"CustomerID": "GODOS", "CompanyName": "Godos Cocina Típica", "TotalOrders": 10, "TotalSpent": 11446.36, "LastOrderDate": "2018-04-21"}, {"CustomerID": "SPLIR", "CompanyName": "Split Rail Beer & Ale", "TotalOrders": 9, "TotalSpent": 11441.63, "LastOrderDate": "2018-03-25"}, {"CustomerID": "TORTU", "CompanyName": "Tortuga Restaurante", "TotalOrders": 10, "TotalSpent": 10812.15, "LastOrderDate": "2018-05-04"}, {"CustomerID": "MAISD", "CompanyName": "Maison Dewey", "TotalOrders": 7, "TotalSpent": 9736.075, "LastOrderDate": "2018-04-07"}, {"CustomerID": "WANDK", "CompanyName": "Die Wandernde Kuh", "TotalOrders": 10, "TotalSpent": 9588.425, "LastOrderDate": "2018-04-23"}, {"CustomerID": "LAMAI", "CompanyName": "La maison d'Asie", "TotalOrders": 14, "TotalSpent": 9328.2, "LastOrderDate": "2018-04-27"}, {"CustomerID": "VICTE", "CompanyName": "Victuailles en stock", "TotalOrders": 10, "TotalSpent": 9182.43, "LastOrderDate": "2018-01-23"}, {"CustomerID": "GOURL", "CompanyName": "Gourmet Lanchonetes", "TotalOrders": 9, "TotalSpent": 8414.135, "LastOrderDate": "2018-04-24"}, {"CustomerID": "MAGAA", "CompanyName": "Magazzini Alimentari Riuniti", "TotalOrders": 10, "TotalSpent": 7176.215, "LastOrderDate": "2018-03-16"}, {"CustomerID": "REGGC", "CompanyName": "Reggiani Caseifici", "TotalOrders": 12, "TotalSpent": 7048.24, "LastOrderDate": "2018-04-30"}, {"CustomerID": "ANTON", "CompanyName": "Antonio Moreno Taquería", "TotalOrders": 7, "TotalSpent": 7023.9775, "LastOrderDate": "2018-01-28"}, {"CustomerID": "TRADH", "CompanyName": "Tradição Hipermercados", "TotalOrders": 6, "TotalSpent": 6850.664, "LastOrderDate": "2018-01-19"}, {"CustomerID": "QUEDE", "CompanyName": "Que Delícia", "TotalOrders": 9, "TotalSpent": 6664.81, "LastOrderDate": "2018-03-31"}, {"CustomerID": "FURIB", "CompanyName": "Furia Bacalhau e Frutos do Mar", "TotalOrders": 8, "TotalSpent": 6427.4225, "LastOrderDate": "2018-03-19"}, {"CustomerID": "ISLAT", "CompanyName": "Island Trading", "TotalOrders": 10, "TotalSpent": 6146.3, "LastOrderDate": "2018-03-06"}, {"CustomerID": "BSBEV", "CompanyName": "B's Beverages", "TotalOrders": 10, "TotalSpent": 6089.9, "LastOrderDate": "2018-04-14"}, {"CustomerID": "WELLI", "CompanyName": "Wellington Importadora", "TotalOrders": 9, "TotalSpent": 6068.2, "LastOrderDate": "2018-03-09"}, {"CustomerID": "SANTG", "CompanyName": "Santé Gourmet", "TotalOrders": 6, "TotalSpent": 5735.15, "LastOrderDate": "2018-04-10"}, {"CustomerID": "PRINI", "CompanyName": "Princesa Isabel Vinhos", "TotalOrders": 5, "TotalSpent": 5044.94, "LastOrderDate": "2018-04-08"}, {"CustomerID": "MORGK", "CompanyName": "Morgenstern Gesundkost", "TotalOrders": 5, "TotalSpent": 5042.2, "LastOrderDate": "2018-03-12"}, {"CustomerID": "TOMSP", "CompanyName": "Toms Spezialitäten", "TotalOrders": 6, "TotalSpent": 4778.14, "LastOrderDate": "2018-03-23"}, {"CustomerID": "ALFKI", "CompanyName": "Alfreds Futterkiste", "TotalOrders": 6, "TotalSpent": 4273.0, "LastOrderDate": "2018-04-09"}, {"CustomerID": "LONEP", "CompanyName": "Lonesome Pine Restaurant", "TotalOrders": 8, "TotalSpent": 4258.6, "LastOrderDate": "2018-04-13"}, {"CustomerID": "PERIC", "CompanyName": "Pericles Comidas clásicas", "TotalOrders": 6, "TotalSpent": 4242.2, "LastOrderDate": "2018-05-05"}, {"CustomerID": "BOLID", "CompanyName": "Bólido Comidas preparadas", "TotalOrders": 3, "TotalSpent": 4232.85, "LastOrderDate": "2018-03-24"}, {"CustomerID": "FAMIA", "CompanyName": "Familia Arquibaldo", "TotalOrders": 7, "TotalSpent": 4107.55, "LastOrderDate": "2017-10-31"}, {"CustomerID": "COMMI", "CompanyName": "Comércio Mineiro", "TotalOrders": 5, "TotalSpent": 3810.75, "LastOrderDate": "2018-04-22"}, {"CustomerID": "DRACD", "CompanyName": "Drachenblut Delikatessen", "TotalOrders": 6, "TotalSpent": 3763.21, "LastOrderDate": "2018-05-04"}, {"CustomerID": "WOLZA", "CompanyName": "Wolski  Zajazd", "TotalOrders": 7, "TotalSpent": 3531.95, "LastOrderDate": "2018-04-23"}, {"CustomerID": "OCEAN", "CompanyName": "Océano Atlántico Ltda.", "TotalOrders": 5, "TotalSpent": 3460.2, "LastOrderDate": "2018-03-30"}, {"CustomerID": "THEBI", "CompanyName": "The Big Cheese", "TotalOrders": 4, "TotalSpent": 3361.0, "LastOrderDate": "2018-04-01"}, {"CustomerID": "BLAUS", "CompanyName": "Blauer See Delikatessen", "TotalOrders": 7, "TotalSpent": 3239.8, "LastOrderDate": "2018-04-29"}, {"CustomerID": "FRANR", "CompanyName": "France restauration", "TotalOrders": 3, "TotalSpent": 3172.1600000000003, "LastOrderDate": "2018-03-24"}, {"CustomerID": "WILMK", "CompanyName": "Wilman Kala", "TotalOrders": 7, "TotalSpent": 3161.35, "LastOrderDate": "2018-04-07"}, {"CustomerID": "LETSS", "CompanyName": "Let's Stop N Shop", "TotalOrders": 4, "TotalSpent": 3076.4725, "LastOrderDate": "2018-02-12"}, {"CustomerID": "HUNGC", "CompanyName": "Hungry Coyote Import Store", "TotalOrders": 5, "TotalSpent": 3063.2, "LastOrderDate": "2017-09-08"}, {"CustomerID": "RANCH", "CompanyName": "Rancho grande", "TotalOrders": 5, "TotalSpent": 2844.1, "LastOrderDate": "2018-04-13"}, {"CustomerID": "SPECD", "CompanyName": "Spécialités du monde", "TotalOrders": 4, "TotalSpent": 2423.35, "LastOrderDate": "2018-04-22"}, {"CustomerID": "LACOR", "CompanyName": "La corne d'abondance", "TotalOrders": 4, "TotalSpent": 1992.05, "LastOrderDate": "2018-03-24"}, {"CustomerID": "THECR", "CompanyName": "The Cracker Box", "TotalOrders": 3, "TotalSpent": 1947.24, "LastOrderDate": "2018-04-06"}, {"CustomerID": "CACTU", "CompanyName": "Cactus Comidas para llevar", "TotalOrders": 6, "TotalSpent": 1814.8, "LastOrderDate": "2018-04-28"}, {"CustomerID": "CONSH", "CompanyName": "Consolidated Holdings", "TotalOrders": 3, "TotalSpent": 1719.1000000000001, "LastOrderDate": "2018-01-23"}, {"CustomerID": "DUMON", "CompanyName": "Du monde entier", "TotalOrders": 4, "TotalSpent": 1615.9, "LastOrderDate": "2018-02-16"}, {"CustomerID": "TRAIH", "CompanyName": "Trail's Head Gourmet Provisioners", "TotalOrders": 3, "TotalSpent": 1571.2, "LastOrderDate": "2018-01-08"}, {"CustomerID": "FRANS", "CompanyName": "Franchi S.p.A.", "TotalOrders": 6, "TotalSpent": 1545.7, "LastOrderDate": "2018-04-30"}, {"CustomerID": "GROSR", "CompanyName": "GROSELLA-Restaurante", "TotalOrders": 2, "TotalSpent": 1488.7, "LastOrderDate": "2017-12-18"}, {"CustomerID": "VINET", "CompanyName": "Vins et alcools Chevalier", "TotalOrders": 5, "TotalSpent": 1480.0, "LastOrderDate": "2017-11-12"}, {"CustomerID": "ROMEY", "CompanyName": "Romero y tomillo", "TotalOrders": 5, "TotalSpent": 1467.29, "LastOrderDate": "2018-04-09"}, {"CustomerID": "ANATR", "CompanyName": "Ana Trujillo Emparedados y helados", "TotalOrders": 4, "TotalSpent": 1402.95, "LastOrderDate": "2018-03-04"}, {"CustomerID": "GALED", "CompanyName": "Galería del gastrónomo", "TotalOrders": 5, "TotalSpent": 836.7, "LastOrderDate": "2018-03-05"}, {"CustomerID": "NORTS", "CompanyName": "North/South", "TotalOrders": 3, "TotalSpent": 649.0, "LastOrderDate": "2018-04-29"}, {"CustomerID": "LAUGB", "CompanyName": "Laughing Bacchus Wine Cellars", "TotalOrders": 3, "TotalSpent": 522.5, "LastOrderDate": "2018-01-01"}, {"CustomerID": "LAZYK", "CompanyName": "Lazy K Kountry Store", "TotalOrders": 2, "TotalSpent": 357.0, "LastOrderDate": "2017-05-22"}, {"CustomerID": "CENTC", "CompanyName": "Centro comercial Moctezuma", "TotalOrders": 1, "TotalSpent": 100.8, "LastOrderDate": "2016-07-18"}, {"CustomerID": "FISSA", "CompanyName": "FISSA Fabrica Inter. Salchichas S.A.", "TotalOrders": 0, "TotalSpent": 0.0, "LastOrderDate": null}, {"CustomerID": "PARIS", "CompanyName": "Paris spécialités", "TotalOrders": 0, "TotalSpent": 0.0, "LastOrderDate": null}, {"CustomerID": "VALON", "CompanyName": "IT", "TotalOrders": 0, "TotalSpent": 0.0, "LastOrderDate": null}, {"CustomerID": "Val2 ", "CompanyName": "IT", "TotalOrders": 0, "TotalSpent": 0.0, "LastOrderDate": null}]
+# - question: What are the top 10 pairs of products that are most frequently 
+#     ordered together in the same order?
+#   query: |
+#     SELECT 
+#         p1.ProductName AS Product1,
+#         p2.ProductName AS Product2,
+#         COUNT(*) AS TimesOrderedTogether
+#     FROM OrderDetails od1
+#     JOIN OrderDetails od2 ON od1.OrderID = od2.OrderID AND od1.ProductID < od2.ProductID
+#     JOIN Products p1 ON od1.ProductID = p1.ProductID
+#     JOIN Products p2 ON od2.ProductID = p2.ProductID
+#     GROUP BY p1.ProductName, p2.ProductName
+#     ORDER BY TimesOrderedTogether DESC
+#     LIMIT 10;
+#   expected: |-
+#     [{"Product1": "Sir Rodney's Scones", "Product2": "Sirop d'érable", "TimesOrderedTogether": 8}, {"Product1": "Pavlova", "Product2": "Gorgonzola Telino", "TimesOrderedTogether": 7}, {"Product1": "Camembert Pierrot", "Product2": "Flotemysost", "TimesOrderedTogether": 6}, {"Product1": "Gorgonzola Telino", "Product2": "Mozzarella di Giovanni", "TimesOrderedTogether": 6}, {"Product1": "Nord-Ost Matjeshering", "Product2": "Tourtière", "TimesOrderedTogether": 6}, {"Product1": "Pavlova", "Product2": "Camembert Pierrot", "TimesOrderedTogether": 6}, {"Product1": "Pavlova", "Product2": "Tarte au sucre", "TimesOrderedTogether": 6}, {"Product1": "Alice Mutton", "Product2": "Geitost", "TimesOrderedTogether": 5}, {"Product1": "Chang", "Product2": "Gorgonzola Telino", "TimesOrderedTogether": 5}, {"Product1": "Chang", "Product2": "Pavlova", "TimesOrderedTogether": 5}]
+# - question: What were the total monthly sales (revenue after discount) for the 
+#     year 1997, displayed with month names?
+#   query: |
+#     SELECT 
+#         CASE strftime('%m', o.OrderDate)
+#             WHEN '01' THEN 'January'
+#             WHEN '02' THEN 'February'
+#             WHEN '03' THEN 'March'
+#             WHEN '04' THEN 'April'
+#             WHEN '05' THEN 'May'
+#             WHEN '06' THEN 'June'
+#             WHEN '07' THEN 'July'
+#             WHEN '08' THEN 'August'
+#             WHEN '09' THEN 'September'
+#             WHEN '10' THEN 'October'
+#             WHEN '11' THEN 'November'
+#             WHEN '12' THEN 'December'
+#         END AS MonthName,
+#         SUM(od.Quantity * od.UnitPrice * (1 - od.Discount)) AS MonthlySales
+#     FROM Orders o
+#     JOIN OrderDetails od ON o.OrderID = od.OrderID
+#     WHERE strftime('%Y', o.OrderDate) = '1997'
+#     GROUP BY strftime('%m', o.OrderDate)
+#     ORDER BY strftime('%m', o.OrderDate);
+#   expected: |-
+#     []
+# - question: Which customers have placed orders for products from more than 5 
+#     different categories?
+#   query: |
+#     SELECT 
+#         c.CustomerID,
+#         c.CompanyName,
+#         COUNT(DISTINCT p.CategoryID) AS CategoriesOrdered
+#     FROM Customers c
+#     JOIN Orders o ON c.CustomerID = o.CustomerID
+#     JOIN OrderDetails od ON o.OrderID = od.OrderID
+#     JOIN Products p ON od.ProductID = p.ProductID
+#     GROUP BY c.CustomerID, c.CompanyName
+#     HAVING COUNT(DISTINCT p.CategoryID) > 5
+#     ORDER BY CategoriesOrdered DESC;
+#   expected: |-
+#     [{"CustomerID": "BERGS", "CompanyName": "Berglunds snabbköp", "CategoriesOrdered": 8}, {"CustomerID": "BLAUS", "CompanyName": "Blauer See Delikatessen", "CategoriesOrdered": 8}, {"CustomerID": "BONAP", "CompanyName": "Bon app'", "CategoriesOrdered": 8}, {"CustomerID": "BOTTM", "CompanyName": "Bottom-Dollar Markets", "CategoriesOrdered": 8}, {"CustomerID": "CHOPS", "CompanyName": "Chop-suey Chinese", "CategoriesOrdered": 8}, {"CustomerID": "ERNSH", "CompanyName": "Ernst Handel", "CategoriesOrdered": 8}, {"CustomerID": "FOLIG", "CompanyName": "Folies gourmandes", "CategoriesOrdered": 8}, {"CustomerID": "FOLKO", "CompanyName": "Folk och fä HB", "CategoriesOrdered": 8}, {"CustomerID": "FRANK", "CompanyName": "Frankenversand", "CategoriesOrdered": 8}, {"CustomerID": "GODOS", "CompanyName": "Godos Cocina Típica", "CategoriesOrdered": 8}, {"CustomerID": "GREAL", "CompanyName": "Great Lakes Food Market", "CategoriesOrdered": 8}, {"CustomerID": "HANAR", "CompanyName": "Hanari Carnes", "CategoriesOrdered": 8}, {"CustomerID": "HILAA", "CompanyName": "HILARION-Abastos", "CategoriesOrdered": 8}, {"CustomerID": "HUNGO", "CompanyName": "Hungry Owl All-Night Grocers", "CategoriesOrdered": 8}, {"CustomerID": "LAMAI", "CompanyName": "La maison d'Asie", "CategoriesOrdered": 8}, {"CustomerID": "LILAS", "CompanyName": "LILA-Supermercado", "CategoriesOrdered": 8}, {"CustomerID": "LINOD", "CompanyName": "LINO-Delicateses", "CategoriesOrdered": 8}, {"CustomerID": "MAISD", "CompanyName": "Maison Dewey", "CategoriesOrdered": 8}, {"CustomerID": "MEREP", "CompanyName": "Mère Paillarde", "CategoriesOrdered": 8}, {"CustomerID": "OLDWO", "CompanyName": "Old World Delicatessen", "CategoriesOrdered": 8}, {"CustomerID": "OTTIK", "CompanyName": "Ottilies Käseladen", "CategoriesOrdered": 8}, {"CustomerID": "PICCO", "CompanyName": "Piccolo und mehr", "CategoriesOrdered": 8}, {"CustomerID": "QUEEN", "CompanyName": "Queen Cozinha", "CategoriesOrdered": 8}, {"CustomerID": "QUICK", "CompanyName": "QUICK-Stop", "CategoriesOrdered": 8}, {"CustomerID": "RATTC", "CompanyName": "Rattlesnake Canyon Grocery", "CategoriesOrdered": 8}, {"CustomerID": "REGGC", "CompanyName": "Reggiani Caseifici", "CategoriesOrdered": 8}, {"CustomerID": "RICSU", "CompanyName": "Richter Supermarkt", "CategoriesOrdered": 8}, {"CustomerID": "SAVEA", "CompanyName": "Save-a-lot Markets", "CategoriesOrdered": 8}, {"CustomerID": "SPLIR", "CompanyName": "Split Rail Beer & Ale", "CategoriesOrdered": 8}, {"CustomerID": "SUPRD", "CompanyName": "Suprêmes délices", "CategoriesOrdered": 8}, {"CustomerID": "VAFFE", "CompanyName": "Vaffeljernet", "CategoriesOrdered": 8}, {"CustomerID": "VICTE", "CompanyName": "Victuailles en stock", "CategoriesOrdered": 8}, {"CustomerID": "WANDK", "CompanyName": "Die Wandernde Kuh", "CategoriesOrdered": 8}, {"CustomerID": "WARTH", "CompanyName": "Wartian Herkku", "CategoriesOrdered": 8}, {"CustomerID": "WHITC", "CompanyName": "White Clover Markets", "CategoriesOrdered": 8}, {"CustomerID": "WILMK", "CompanyName": "Wilman Kala", "CategoriesOrdered": 8}, {"CustomerID": "ANTON", "CompanyName": "Antonio Moreno Taquería", "CategoriesOrdered": 7}, {"CustomerID": "AROUT", "CompanyName": "Around the Horn", "CategoriesOrdered": 7}, {"CustomerID": "BLONP", "CompanyName": "Blondesddsl père et fils", "CategoriesOrdered": 7}, {"CustomerID": "BSBEV", "CompanyName": "B's Beverages", "CategoriesOrdered": 7}, {"CustomerID": "EASTC", "CompanyName": "Eastern Connection", "CategoriesOrdered": 7}, {"CustomerID": "FURIB", "CompanyName": "Furia Bacalhau e Frutos do Mar", "CategoriesOrdered": 7}, {"CustomerID": "GOURL", "CompanyName": "Gourmet Lanchonetes", "CategoriesOrdered": 7}, {"CustomerID": "ISLAT", "CompanyName": "Island Trading", "CategoriesOrdered": 7}, {"CustomerID": "KOENE", "CompanyName": "Königlich Essen", "CategoriesOrdered": 7}, {"CustomerID": "LACOR", "CompanyName": "La corne d'abondance", "CategoriesOrdered": 7}, {"CustomerID": "LEHMS", "CompanyName": "Lehmanns Marktstand", "CategoriesOrdered": 7}, {"CustomerID": "LONEP", "CompanyName": "Lonesome Pine Restaurant", "CategoriesOrdered": 7}, {"CustomerID": "QUEDE", "CompanyName": "Que Delícia", "CategoriesOrdered": 7}, {"CustomerID": "RANCH", "CompanyName": "Rancho grande", "CategoriesOrdered": 7}, {"CustomerID": "RICAR", "CompanyName": "Ricardo Adocicados", "CategoriesOrdered": 7}, {"CustomerID": "SANTG", "CompanyName": "Santé Gourmet", "CategoriesOrdered": 7}, {"CustomerID": "SEVES", "CompanyName": "Seven Seas Imports", "CategoriesOrdered": 7}, {"CustomerID": "SIMOB", "CompanyName": "Simons bistro", "CategoriesOrdered": 7}, {"CustomerID": "TORTU", "CompanyName": "Tortuga Restaurante", "CategoriesOrdered": 7}, {"CustomerID": "WELLI", "CompanyName": "Wellington Importadora", "CategoriesOrdered": 7}, {"CustomerID": "WOLZA", "CompanyName": "Wolski  Zajazd", "CategoriesOrdered": 7}, {"CustomerID": "ANATR", "CompanyName": "Ana Trujillo Emparedados y helados", "CategoriesOrdered": 6}, {"CustomerID": "COMMI", "CompanyName": "Comércio Mineiro", "CategoriesOrdered": 6}, {"CustomerID": "CONSH", "CompanyName": "Consolidated Holdings", "CategoriesOrdered": 6}, {"CustomerID": "DUMON", "CompanyName": "Du monde entier", "CategoriesOrdered": 6}, {"CustomerID": "FAMIA", "CompanyName": "Familia Arquibaldo", "CategoriesOrdered": 6}, {"CustomerID": "LETSS", "CompanyName": "Let's Stop N Shop", "CategoriesOrdered": 6}, {"CustomerID": "MAGAA", "CompanyName": "Magazzini Alimentari Riuniti", "CategoriesOrdered": 6}, {"CustomerID": "MORGK", "CompanyName": "Morgenstern Gesundkost", "CategoriesOrdered": 6}, {"CustomerID": "OCEAN", "CompanyName": "Océano Atlántico Ltda.", "CategoriesOrdered": 6}, {"CustomerID": "PERIC", "CompanyName": "Pericles Comidas clásicas", "CategoriesOrdered": 6}, {"CustomerID": "PRINI", "CompanyName": "Princesa Isabel Vinhos", "CategoriesOrdered": 6}, {"CustomerID": "ROMEY", "CompanyName": "Romero y tomillo", "CategoriesOrdered": 6}, {"CustomerID": "THECR", "CompanyName": "The Cracker Box", "CategoriesOrdered": 6}, {"CustomerID": "TOMSP", "CompanyName": "Toms Spezialitäten", "CategoriesOrdered": 6}, {"CustomerID": "TRADH", "CompanyName": "Tradição Hipermercados", "CategoriesOrdered": 6}, {"CustomerID": "TRAIH", "CompanyName": "Trail's Head Gourmet Provisioners", "CategoriesOrdered": 6}]
+# - question: For each product, calculate the total quantity sold, total revenue 
+#     generated, and the percentage of total revenue that product contributes to 
+#     its category's overall revenue.
+#   query: |
+#     WITH CategoryRevenue AS (
+#         SELECT 
+#             p.CategoryID,
+#             SUM(od.Quantity * od.UnitPrice * (1 - od.Discount)) AS CatTotalRevenue
+#         FROM Products p
+#         JOIN OrderDetails od ON p.ProductID = od.ProductID
+#         GROUP BY p.CategoryID
+#     )
+#     SELECT 
+#         p.ProductID,
+#         p.ProductName,
+#         SUM(od.Quantity) AS TotalQuantity,
+#         SUM(od.Quantity * od.UnitPrice * (1 - od.Discount)) AS ProductRevenue,
+#         (SUM(od.Quantity * od.UnitPrice * (1 - od.Discount)) * 100.0 / cr.CatTotalRevenue) AS PercentOfCategory
+#     FROM Products p
+#     JOIN OrderDetails od ON p.ProductID = od.ProductID
+#     JOIN CategoryRevenue cr ON p.CategoryID = cr.CategoryID
+#     GROUP BY p.ProductID, p.ProductName, cr.CatTotalRevenue
+#     ORDER BY p.CategoryID, PercentOfCategory DESC;
+#   expected: |-
+#     [{"ProductID": 38, "ProductName": "Côte de Blaye", "TotalQuantity": 623, "ProductRevenue": 141396.735, "PercentOfCategory": 52.785939337774266}, {"ProductID": 43, "ProductName": "Ipoh Coffee", "TotalQuantity": 580, "ProductRevenue": 23526.7, "PercentOfCategory": 8.782939429386499}, {"ProductID": 2, "ProductName": "Chang", "TotalQuantity": 1057, "ProductRevenue": 16355.96, "PercentOfCategory": 6.105973467994594}, {"ProductID": 76, "ProductName": "Lakkalikööri", "TotalQuantity": 981, "ProductRevenue": 15760.44, "PercentOfCategory": 5.88365516202783}, {"ProductID": 35, "ProductName": "Steeleye Stout", "TotalQuantity": 883, "ProductRevenue": 13644.0, "PercentOfCategory": 5.093550118569515}, {"ProductID": 1, "ProductName": "Chai", "TotalQuantity": 828, "ProductRevenue": 12788.1, "PercentOfCategory": 4.774027284614395}, {"ProductID": 39, "ProductName": "Chartreuse verte", "TotalQuantity": 793, "ProductRevenue": 12294.54, "PercentOfCategory": 4.589772476895165}, {"ProductID": 70, "ProductName": "Outback Lager", "TotalQuantity": 817, "ProductRevenue": 10672.65, "PercentOfCategory": 3.9842918259272153}, {"ProductID": 75, "ProductName": "Rhönbräu Klosterbier", "TotalQuantity": 1155, "ProductRevenue": 8177.49, "PercentOfCategory": 3.0528038082014817}, {"ProductID": 34, "ProductName": "Sasquatch Ale", "TotalQuantity": 506, "ProductRevenue": 6350.4, "PercentOfCategory": 2.370718313761642}, {"ProductID": 24, "ProductName": "Guaraná Fantástica", "TotalQuantity": 1125, "ProductRevenue": 4504.365, "PercentOfCategory": 1.6815603107468755}, {"ProductID": 67, "ProductName": "Laughing Lumberjack Lager", "TotalQuantity": 184, "ProductRevenue": 2396.8, "PercentOfCategory": 0.894768464100514}, {"ProductID": 63, "ProductName": "Vegie-spread", "TotalQuantity": 445, "ProductRevenue": 16701.095, "PercentOfCategory": 15.748754432995494}, {"ProductID": 61, "ProductName": "Sirop d'érable", "TotalQuantity": 603, "ProductRevenue": 14352.6, "PercentOfCategory": 13.534176823436495}, {"ProductID": 65, "ProductName": "Louisiana Fiery Hot Pepper Sauce", "TotalQuantity": 745, "ProductRevenue": 13869.89, "PercentOfCategory": 13.078992223124285}, {"ProductID": 8, "ProductName": "Northwoods Cranberry Sauce", "TotalQuantity": 372, "ProductRevenue": 12772.0, "PercentOfCategory": 12.043706811931699}, {"ProductID": 44, "ProductName": "Gula Malacca", "TotalQuantity": 601, "ProductRevenue": 9915.945, "PercentOfCategory": 9.350511614722837}, {"ProductID": 77, "ProductName": "Original Frankfurter grüne Soße", "TotalQuantity": 791, "ProductRevenue": 9171.63, "PercentOfCategory": 8.648639422762066}, {"ProductID": 4, "ProductName": "Chef Anton's Cajun Seasoning", "TotalQuantity": 453, "ProductRevenue": 8567.9, "PercentOfCategory": 8.079335702626809}, {"ProductID": 6, "ProductName": "Grandma's Boysenberry Spread", "TotalQuantity": 301, "ProductRevenue": 7137.0, "PercentOfCategory": 6.730029401562523}, {"ProductID": 5, "ProductName": "Chef Anton's Gumbo Mix", "TotalQuantity": 298, "ProductRevenue": 5347.2, "PercentOfCategory": 5.0422885268369235}, {"ProductID": 66, "ProductName": "Louisiana Hot Spiced Okra", "TotalQuantity": 239, "ProductRevenue": 3383.0, "PercentOfCategory": 3.19009240093681}, {"ProductID": 3, "ProductName": "Aniseed Syrup", "TotalQuantity": 328, "ProductRevenue": 3044.0, "PercentOfCategory": 2.8704230766927727}, {"ProductID": 15, "ProductName": "Genen Shouyu", "TotalQuantity": 122, "ProductRevenue": 1784.825, "PercentOfCategory": 1.6830495623712804}, {"ProductID": 62, "ProductName": "Tarte au sucre", "TotalQuantity": 1083, "ProductRevenue": 47234.97, "PercentOfCategory": 28.224039924180147}, {"ProductID": 20, "ProductName": "Sir Rodney's Marmalade", "TotalQuantity": 313, "ProductRevenue": 22563.36, "PercentOfCategory": 13.48215471426465}, {"ProductID": 26, "ProductName": "Gumbär Gummibärchen", "TotalQuantity": 753, "ProductRevenue": 19849.1445, "PercentOfCategory": 11.860345138968455}, {"ProductID": 16, "ProductName": "Pavlova", "TotalQuantity": 1158, "ProductRevenue": 17215.7755, "PercentOfCategory": 10.286843307780707}, {"ProductID": 27, "ProductName": "Schoggi Schokolade", "TotalQuantity": 365, "ProductRevenue": 15099.875, "PercentOfCategory": 9.022541452871245}, {"ProductID": 49, "ProductName": "Maxilaku", "TotalQuantity": 520, "ProductRevenue": 9244.6, "PercentOfCategory": 5.5238726622050525}, {"ProductID": 21, "ProductName": "Sir Rodney's Scones", "TotalQuantity": 1016, "ProductRevenue": 9104.0, "PercentOfCategory": 5.439860752949268}, {"ProductID": 68, "ProductName": "Scottish Longbreads", "TotalQuantity": 799, "ProductRevenue": 8714.0, "PercentOfCategory": 5.206826296265369}, {"ProductID": 19, "ProductName": "Teatime Chocolate Biscuits", "TotalQuantity": 723, "ProductRevenue": 5862.62, "PercentOfCategory": 3.503057606267073}, {"ProductID": 47, "ProductName": "Zaanse koeken", "TotalQuantity": 485, "ProductRevenue": 3958.08, "PercentOfCategory": 2.3650487751574514}, {"ProductID": 25, "ProductName": "NuNuCa Nuß-Nougat-Creme", "TotalQuantity": 318, "ProductRevenue": 3704.4, "PercentOfCategory": 2.213468823948294}, {"ProductID": 50, "ProductName": "Valkoinen suklaa", "TotalQuantity": 235, "ProductRevenue": 3437.6875, "PercentOfCategory": 2.054101637978283}, {"ProductID": 48, "ProductName": "Chocolade", "TotalQuantity": 138, "ProductRevenue": 1368.7125, "PercentOfCategory": 0.817838907164002}, {"ProductID": 59, "ProductName": "Raclette Courdavault", "TotalQuantity": 1496, "ProductRevenue": 71155.7, "PercentOfCategory": 30.34263946213867}, {"ProductID": 60, "ProductName": "Camembert Pierrot", "TotalQuantity": 1577, "ProductRevenue": 46825.48, "PercentOfCategory": 19.967601432936295}, {"ProductID": 72, "ProductName": "Mozzarella di Giovanni", "TotalQuantity": 806, "ProductRevenue": 24900.13, "PercentOfCategory": 10.618062462323932}, {"ProductID": 69, "ProductName": "Gudbrandsdalsost", "TotalQuantity": 714, "ProductRevenue": 21942.36, "PercentOfCategory": 9.356792476617517}, {"ProductID": 71, "ProductName": "Flotemysost", "TotalQuantity": 1057, "ProductRevenue": 19551.025, "PercentOfCategory": 8.337065093734722}, {"ProductID": 31, "ProductName": "Gorgonzola Telino", "TotalQuantity": 1397, "ProductRevenue": 14920.875, "PercentOfCategory": 6.36264881920406}, {"ProductID": 11, "ProductName": "Queso Cabrales", "TotalQuantity": 706, "ProductRevenue": 12901.77, "PercentOfCategory": 5.501649980724479}, {"ProductID": 12, "ProductName": "Queso Manchego La Pastora", "TotalQuantity": 344, "ProductRevenue": 12257.66, "PercentOfCategory": 5.226984739514595}, {"ProductID": 32, "ProductName": "Mascarpone Fabioli", "TotalQuantity": 297, "ProductRevenue": 8404.16, "PercentOfCategory": 3.5837522062480915}, {"ProductID": 33, "ProductName": "Geitost", "TotalQuantity": 755, "ProductRevenue": 1648.125, "PercentOfCategory": 0.7028033265576377}, {"ProductID": 56, "ProductName": "Gnocchi di nonna Alice", "TotalQuantity": 1263, "ProductRevenue": 42593.06, "PercentOfCategory": 44.48612826286395}, {"ProductID": 64, "ProductName": "Wimmers gute Semmelknödel", "TotalQuantity": 740, "ProductRevenue": 21957.9675, "PercentOfCategory": 22.933899527218706}, {"ProductID": 42, "ProductName": "Singaporean Hokkien Fried Mee", "TotalQuantity": 697, "ProductRevenue": 8575.0, "PercentOfCategory": 8.95611984332796}, {"ProductID": 57, "ProductName": "Ravioli Angelo", "TotalQuantity": 434, "ProductRevenue": 7661.55, "PercentOfCategory": 8.002071135352692}, {"ProductID": 22, "ProductName": "Gustaf's Knäckebröd", "TotalQuantity": 348, "ProductRevenue": 7122.36, "PercentOfCategory": 7.4389165862770055}, {"ProductID": 23, "ProductName": "Tunnbröd", "TotalQuantity": 580, "ProductRevenue": 4601.7, "PercentOfCategory": 4.806224686069069}, {"ProductID": 52, "ProductName": "Filo Mix", "TotalQuantity": 500, "ProductRevenue": 3232.95, "PercentOfCategory": 3.376639958890627}, {"ProductID": 29, "ProductName": "Thüringer Rostbratwurst", "TotalQuantity": 746, "ProductRevenue": 80368.672, "PercentOfCategory": 49.29917113609192}, {"ProductID": 17, "ProductName": "Alice Mutton", "TotalQuantity": 978, "ProductRevenue": 32698.38, "PercentOfCategory": 20.057604429409576}, {"ProductID": 53, "ProductName": "Perth Pasties", "TotalQuantity": 722, "ProductRevenue": 20574.17, "PercentOfCategory": 12.620458974524901}, {"ProductID": 55, "ProductName": "Pâté chinois", "TotalQuantity": 903, "ProductRevenue": 17426.4, "PercentOfCategory": 10.689576603754164}, {"ProductID": 9, "ProductName": "Mishi Kobe Niku", "TotalQuantity": 95, "ProductRevenue": 7226.5, "PercentOfCategory": 4.43282751038823}, {"ProductID": 54, "ProductName": "Tourtière", "TotalQuantity": 755, "ProductRevenue": 4728.2375, "PercentOfCategory": 2.900361345831214}, {"ProductID": 51, "ProductName": "Manjimup Dried Apples", "TotalQuantity": 886, "ProductRevenue": 41819.65, "PercentOfCategory": 41.82609958455594}, {"ProductID": 28, "ProductName": "Rössle Sauerkraut", "TotalQuantity": 640, "ProductRevenue": 25696.64, "PercentOfCategory": 25.700603032987686}, {"ProductID": 7, "ProductName": "Uncle Bob's Organic Dried Pears", "TotalQuantity": 763, "ProductRevenue": 22044.3, "PercentOfCategory": 22.04769975530227}, {"ProductID": 14, "ProductName": "Tofu", "TotalQuantity": 404, "ProductRevenue": 7991.49, "PercentOfCategory": 7.992722477806078}, {"ProductID": 74, "ProductName": "Longlife Tofu", "TotalQuantity": 297, "ProductRevenue": 2432.5, "PercentOfCategory": 2.4328751493480296}, {"ProductID": 18, "ProductName": "Carnarvon Tigers", "TotalQuantity": 539, "ProductRevenue": 29171.875, "PercentOfCategory": 22.224202997465277}, {"ProductID": 10, "ProductName": "Ikura", "TotalQuantity": 742, "ProductRevenue": 20867.34, "PercentOfCategory": 15.89750402321164}, {"ProductID": 40, "ProductName": "Boston Crab Meat", "TotalQuantity": 1103, "ProductRevenue": 17910.63, "PercentOfCategory": 13.64497403517914}, {"ProductID": 36, "ProductName": "Inlagd Sill", "TotalQuantity": 805, "ProductRevenue": 13458.46, "PercentOfCategory": 10.253147837541006}, {"ProductID": 30, "ProductName": "Nord-Ost Matjeshering", "TotalQuantity": 612, "ProductRevenue": 13424.1975, "PercentOfCategory": 10.227045409939056}, {"ProductID": 41, "ProductName": "Jack's New England Clam Chowder", "TotalQuantity": 981, "ProductRevenue": 8680.345, "PercentOfCategory": 6.613004798904174}, {"ProductID": 46, "ProductName": "Spegesild", "TotalQuantity": 548, "ProductRevenue": 5883.0, "PercentOfCategory": 4.481884905721289}, {"ProductID": 58, "ProductName": "Escargots de Bourgogne", "TotalQuantity": 534, "ProductRevenue": 5881.675, "PercentOfCategory": 4.480875472183964}, {"ProductID": 13, "ProductName": "Konbu", "TotalQuantity": 891, "ProductRevenue": 4960.44, "PercentOfCategory": 3.779044902555857}, {"ProductID": 45, "ProductName": "Rogede sild", "TotalQuantity": 508, "ProductRevenue": 4338.175, "PercentOfCategory": 3.304980630779781}, {"ProductID": 73, "ProductName": "Röd Kaviar", "TotalQuantity": 293, "ProductRevenue": 3997.2, "PercentOfCategory": 3.0452133852029806}, {"ProductID": 37, "ProductName": "Gravad lax", "TotalQuantity": 125, "ProductRevenue": 2688.4, "PercentOfCategory": 2.0481216013158443}]
+# - question: For each product category, find the product that has been sold the 
+#     most in terms of total quantity.
+#   query: |
+#     WITH ProductSales AS (
+#         SELECT 
+#             p.CategoryID,
+#             p.ProductID,
+#             p.ProductName,
+#             SUM(od.Quantity) AS TotalQtySold
+#         FROM Products p
+#         JOIN OrderDetails od ON p.ProductID = od.ProductID
+#         GROUP BY p.CategoryID, p.ProductID, p.ProductName
+#     ),
+#     RankedProducts AS (
+#         SELECT 
+#             CategoryID,
+#             ProductID,
+#             ProductName,
+#             TotalQtySold,
+#             ROW_NUMBER() OVER (PARTITION BY CategoryID ORDER BY TotalQtySold DESC) AS rn
+#         FROM ProductSales
+#     )
+#     SELECT 
+#         c.CategoryName,
+#         rp.ProductName,
+#         rp.TotalQtySold
+#     FROM RankedProducts rp
+#     JOIN Categories c ON rp.CategoryID = c.CategoryID
+#     WHERE rp.rn = 1
+#     ORDER BY c.CategoryName;
+#   expected: |-
+#     [{"CategoryName": "Beverages", "ProductName": "Rhönbräu Klosterbier", "TotalQtySold": 1155}, {"CategoryName": "Condiments", "ProductName": "Original Frankfurter grüne Soße", "TotalQtySold": 791}, {"CategoryName": "Confections", "ProductName": "Pavlova", "TotalQtySold": 1158}, {"CategoryName": "Dairy Products", "ProductName": "Camembert Pierrot", "TotalQtySold": 1577}, {"CategoryName": "Grains/Cereals", "ProductName": "Gnocchi di nonna Alice", "TotalQtySold": 1263}, {"CategoryName": "Meat/Poultry", "ProductName": "Alice Mutton", "TotalQtySold": 978}, {"CategoryName": "Produce", "ProductName": "Manjimup Dried Apples", "TotalQtySold": 886}, {"CategoryName": "Seafood", "ProductName": "Boston Crab Meat", "TotalQtySold": 1103}]
