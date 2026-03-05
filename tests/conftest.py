@@ -9,27 +9,28 @@ from lng.get_model import get_model_qualified_name, get_model
 
 _logger = logging.getLogger(__name__)
 
+# ("deepseek", "deepseek-reasoner") removed as it's not good with tool calls
+# see https://github.com/langchain-ai/langchain/issues/34166
+MODELS = [("ollama", "gpt-oss:20b"),
+          ("ollama", "qwen3:30b"),
+          ("deepseek", "deepseek-chat"),]
+
+MODEL_IDS = [v[1] for v in MODELS]
+
 @pytest.fixture(scope='session')
 def sqldb_filename():
-    """ Test database file (Northwind) """
+    """Test database file (Northwind)"""
     return os.path.abspath('./data/northwind.db')
 
 @pytest.fixture(scope='session')
 def sqldb_database(sqldb_filename):
-    """ Test database instance (Northwind) """
+    """Test database instance (Northwind)"""
     from langchain_community.utilities.sql_database import SQLDatabase
     return SQLDatabase.from_uri(f"sqlite:///{sqldb_filename}?mode=ro", engine_args={"echo": False})
 
-MODELS = [("ollama", "gpt-oss:20b"),
-          ("ollama", "qwen3:30b"),
-          ("deepseek", "deepseek-chat"),
-          ("deepseek", "deepseek-reasoner")]
-
-MODEL_IDS = [v[1] for v in MODELS]
-
 @pytest.fixture(params=MODELS, ids=MODEL_IDS)
 def agent_model(request):
-    """ Agent LLM instance (parametrized) """
+    """Agent LLM instance (parametrized)"""
     _logger.info(f"Running test with '{request.param[0]}:{request.param[1]}' agent")
     try:
         yield get_model(request.param[0], request.param[1])
@@ -40,7 +41,7 @@ def agent_model(request):
 
 @pytest.fixture(params=MODELS, ids=MODEL_IDS)
 def agent_model_qual_name(request):
-    """ Agent LLM qualified name (parametrized) """
+    """Agent LLM qualified name (parametrized)"""
     _logger.info(f"Running test with '{request.param[0]}:{request.param[1]}' agent")
 
     yield get_model_qualified_name(request.param[0], request.param[1])
@@ -49,19 +50,15 @@ def agent_model_qual_name(request):
     if request.param[0] == "ollama":
         subprocess.run("ollama ps | awk 'NR>1 {print $1}' | xargs -L 1 ollama stop", shell=True, check=False)
 
-def bsl_agent(agent_model_qual_name):
-    """ BSL agent instance """
-    from boring_semantic_layer.agents.backends.langgraph import LangGraphBackend
-
-    agent = LangGraphBackend(
-        model_path=Path('./data/northwind_bsl.yaml'),
-        llm_model=agent_model_qual_name,
-        chart_backend="plotly",
-        profile="northwind_duckdb",
-        profile_file=Path("./data/northwind_profile.yaml"),
-        return_json=True,
-    )
-    yield agent
+@pytest.fixture(scope='session')
+def bsl_agent_prompt() -> str:
+    return """
+Answer to user question: {question}.
+Return ONLY valid JSON array.
+NO explanations. NO comments.
+Each array element MUST correspond to one row.
+All column names MUST BE in CamelCase (for example CompanyName, OrderCount). No underscores allowed.
+"""
 
 @pytest.fixture(scope='session')
 def sql_agent_prompt() -> str:
@@ -106,13 +103,20 @@ Answer user questions by retrieving data using SQL.
 3. Write a SELECT query.
 4. Validate with sql_db_query_checker().
 5. Execute with sql_db_query().
-6. Return the result.
+6. Return the result ONLY as a valid JSON array, with no additional text, explanations, or commentary.
 
 ### Output format
 
 - Return ONLY a valid JSON array.
 - An array element must correspond to one data record.
-- DO NOT include explanations, SQL, comments, markdown.
+- DO NOT INCLUDE:
+-   explanations, 
+-   SQL,
+-   comments,
+-   markdown.
+
+The output must consist EXCLUSIVELY of the JSON array – no whitespace outside the array, no introductory phrases, no trailing sentences.
+**Failure to follow the output format exactly (including any extra text) is considered an error.**
 
 Example:
 
@@ -121,7 +125,23 @@ Example:
     "Customers.CompanyName": "ABC Corp",
     "Orders.OrderCount": 15
   }}
-]"""
+]
+"""
+
+@pytest.fixture
+def bsl_agent(agent_model_qual_name):
+    """ BSL agent instance """
+    from boring_semantic_layer.agents.backends.langgraph import LangGraphBackend
+
+    agent = LangGraphBackend(
+        model_path=Path('./data/northwind_bsl.yaml'),
+        llm_model=agent_model_qual_name,
+        chart_backend="plotext",
+        profile="northwind_duckdb",
+        profile_file=Path("./data/northwind_profile.yaml"),
+        return_json=True,
+    )
+    yield agent
 
 @pytest.fixture
 def sql_agent(agent_model, sqldb_database, sql_agent_prompt):

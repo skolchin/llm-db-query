@@ -8,11 +8,14 @@ test_agents:
      {"Customers.CompanyName":"Hungry Owl All-Night Grocers","Orders.OrderCount":19},
      {"Customers.CompanyName":"Folk och fä HB","Orders.OrderCount":19}]
   aliases:
+    Customers.CompanyName:
+      - CompanyName
     Orders.OrderCount:
       - Orders.OrdersCount
+      - Customers.OrderCount
+      - OrderCount
 
-- question: What is the total revenue generated from each product category in 
-    the year 2016?
+- question: What is the total revenue generated from each product category in the year 2016?
   query: |
     SELECT
         c.CategoryName as "Categories.CategoryName",
@@ -34,14 +37,18 @@ test_agents:
     {"Categories.CategoryName": "Produce", "Categories.TotalRevenue": 13885.78},
     {"Categories.CategoryName": "Grains/Cereals", "Categories.TotalRevenue": 9507.92}]
   aliases:
+    Categories.CategoryName:
+      - Category
+      - CategoryName
     Categories.TotalRevenue:
-      - Categories.Revenue
-      - Orders.TotalRevenue
-      - Orders.Revenue
-      - OrderDetails.TotalRevenue
-      - OrderDetails.Revenue
-      - TotalRevenue
       - Revenue
+      - TotalRevenue
+      - Categories.Revenue
+      - Categories.TotalRevenue
+      - Orders.Revenue
+      - Orders.TotalRevenue
+      - OrderDetails.Revenue
+      - OrderDetails.TotalRevenue
 
 # - question: Who are the top 5 customers by total spending (including discount) 
 #     in 1997?

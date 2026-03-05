@@ -127,8 +127,8 @@ OrderDetails:
     Discount: _.Discount
   measures:
     TotalQuantitySold: _.Quantity.sum()
-    TotalGrossSales: (_.UnitPrice * _.Quantity).sum()
-    TotalNetSales: ((_.UnitPrice * _.Quantity) * (1 - _.Discount)).sum()
+    TotalSales: (_.UnitPrice * _.Quantity).sum()
+    TotalRevenue: ((_.UnitPrice * _.Quantity) * (1 - _.Discount)).sum()
     DistinctOrders: _.count()
     DistinctProductsSold: _.count()
   joins:

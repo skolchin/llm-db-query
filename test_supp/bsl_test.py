@@ -1,3 +1,4 @@
+from datetime import datetime
 from boring_semantic_layer import from_yaml
 
 models = from_yaml(
@@ -25,9 +26,10 @@ print(
     .aggregate('Products.ProductCount').execute())
 print()
 
-print("Sales per country:")
+print("Sales per category in 2016:")
 print(
     models['OrderDetails'] \
-    .group_by('Country') \
-    .aggregate('OrderDetails.TotalNetSales').execute())
+    .filter(lambda t: t.OrderDate.year() == 2016) \
+    .group_by('CategoryName') \
+    .aggregate('OrderDetails.TotalRevenue').execute())
 print()

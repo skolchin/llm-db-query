@@ -20,10 +20,10 @@
 from pathlib import Path
 from boring_semantic_layer.agents.backends.langgraph import LangGraphBackend
 
-from lng.get_model import get_model_qualified_name, ModelType
+from get_model import get_model_qualified_name, ModelType
 
 # Constants
-MODEL_TYPE: ModelType = "ollama"
+MODEL_TYPE: ModelType = "deepseek"
 """ Model type selection """
 
 SYSTEM_PROMPT = '''You are a helpful database analyst assistant. Use the available tools to answer user questions about the Northwind database.'''
@@ -31,7 +31,7 @@ SYSTEM_PROMPT = '''You are a helpful database analyst assistant. Use the availab
 # Create the BSL agent
 agent = LangGraphBackend(
     model_path=Path('./data/northwind_bsl.yaml'),
-    llm_model=get_model_qualified_name(MODEL_TYPE),
+    llm_model=get_model_qualified_name(MODEL_TYPE, "deepseek-reasoner"),
     chart_backend="plotly",
     profile="northwind_duckdb",
     profile_file=Path("./data/northwind_profile.yaml"),

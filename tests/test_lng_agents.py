@@ -2,24 +2,16 @@
 
 import re
 import json
+import time
 import logging
 import pandas as pd
 import parametrize_from_file as pff
 from uuid import uuid4
 from langchain_core.runnables.config import RunnableConfig
-from langchain_core.messages import AIMessage, ToolMessage
 from typing import Dict, List
 
 _logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.ERROR)
-
-BSL_AGENT_PROMPT = """
-Answer to user question: {question}.
-Return ONLY valid JSON array.
-NO explanations. NO comments.
-Each array element MUST correspond to one row.
-"""
-
 
 def json_to_frame(response: str | dict | list) -> pd.DataFrame:
 
@@ -73,6 +65,7 @@ def align_and_compare(expected: pd.DataFrame, result: pd.DataFrame, aliases: Dic
     # This provides some backlash for local LLMs
     if aliases:
         result.rename(columns={syn: col for col, synonyms in aliases.items() for syn in synonyms}, inplace=True)
+        result.rename(columns={syn.lower(): col for col, synonyms in aliases.items() for syn in synonyms}, inplace=True)
 
     # Result must have all columns from expected
     if (diff := set(expected.columns).difference(result.columns)):
@@ -98,13 +91,10 @@ def align_and_compare(expected: pd.DataFrame, result: pd.DataFrame, aliases: Dic
         _logger.error(f"Data difference:\n{diff}")
         raise ValueError("Result data does not match expected data")
 
-@pff.parametrize(key="test_agents")
-def test_bsl_agent(question: str, query: str, expected: str, aliases: Dict[str, List[str]], bsl_agent):
-    """ Test BSL agent """
-
+def _bsl_agent_trial(question: str, query: str, expected: str, aliases: Dict[str, List[str]], bsl_agent, bsl_agent_prompt):
     _logger.info(f"Test question: '{question}'")
 
-    prompt = BSL_AGENT_PROMPT.format(question=question)
+    prompt = bsl_agent_prompt.format(question=question)
     tool_output, response = bsl_agent.query(prompt)
     _logger.info(f"Response: {response}")
 
@@ -125,9 +115,37 @@ def _sql_agent_trial(question: str, query: str, expected: str, aliases: Dict[str
     align_and_compare(expected_data, response_data, aliases)
 
 @pff.parametrize(key="test_agents")
+def test_bsl_agent(question: str, query: str, expected: str, aliases: Dict[str, List[str]], bsl_agent, bsl_agent_prompt):
+    """ Test BSL agent """
+    _bsl_agent_trial(question, query, expected, aliases, bsl_agent, bsl_agent_prompt)
+
+@pff.parametrize(key="test_agents")
 def test_sql_agent(question: str, query: str, expected: str, aliases: Dict[str, List[str]], sql_agent):
     """ Test SQL agent """
     _sql_agent_trial(question, query, expected, aliases, sql_agent)
+
+@pff.parametrize(key="test_agents")
+def test_bsl_agent_perf(question: str, query: str, expected: str, aliases: Dict[str, List[str]], bsl_agent, bsl_agent_prompt, benchmark):
+    """ Benchmark BSL agent """
+
+    status_list = []
+    def safe_trial():
+        try:
+            _bsl_agent_trial(question, query, expected, aliases, bsl_agent, bsl_agent_prompt)
+            _logger.info("Test passed")
+            status_list.append("PASSED")
+
+        except Exception as ex:
+            _logger.error(f"Error: {ex}")
+            status_list.append(f"ERROR: {ex}")
+
+    benchmark.pedantic(
+        safe_trial,
+        iterations=1,
+        rounds=30,
+        warmup_rounds=1)
+
+    benchmark.extra_info['run_status'] = status_list
 
 @pff.parametrize(key="test_agents")
 def test_sql_agent_perf(question: str, query: str, expected: str, aliases: Dict[str, List[str]], sql_agent, benchmark):

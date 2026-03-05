@@ -42,7 +42,10 @@ def get_model(model_type: ModelType, model_name: str | None = None) -> BaseChatM
         case "ollama":
             # Local Ollama instance provider
             model_name = model_name or os.environ.get("OLLAMA_MODEL") or "gpt-oss:20b"
-            return ChatOllama(model=model_name)
+            return ChatOllama(
+                model=model_name,
+                temperature=0.,
+            )
 
         case "deepseek" if "DEEPSEEK_API_KEY" in os.environ:
             # Deepseek provider
@@ -50,6 +53,7 @@ def get_model(model_type: ModelType, model_name: str | None = None) -> BaseChatM
             return ChatDeepSeek(
                 model=os.environ.get("DEEPSEEK_MODEL", model_name),
                 api_key=os.environ["DEEPSEEK_API_KEY"], # type:ignore
+                temperature=0.,
             )
 
         case "yandex" if "YANDEX_API_KEY" in os.environ and "YANDEX_FOLDER_ID" in os.environ:
@@ -59,7 +63,7 @@ def get_model(model_type: ModelType, model_name: str | None = None) -> BaseChatM
 
             model_name = model_name or os.environ.get("YANDEX_MODEL") or "yandex-gpt"
             sdk = AIStudio(folder_id=os.environ["YANDEX_FOLDER_ID"], auth=APIKeyAuth(os.environ["YANDEX_API_KEY"]))
-            model = sdk.models.completions(model_name).langchain()
+            model = sdk.models.completions(model_name).configure(temperature=0).langchain()
             return cast(BaseChatModel, model)
 
         case _:
