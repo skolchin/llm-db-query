@@ -1,4 +1,4 @@
-from datetime import datetime
+# BSL model test queries
 from boring_semantic_layer import from_yaml
 
 models = from_yaml(

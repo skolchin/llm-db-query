@@ -5,13 +5,6 @@ openpyxl
 sqlalchemy
 psycopg2-binary
 
-# Testing
-pytest
-ruamel.yaml
-pytest_asyncio
-testcontainers
-parametrize_from_file
-
 # Streamlit
 streamlit
 
@@ -31,7 +24,5 @@ pydantic-ai-slim[openai,logfire,cli,mcp]
 # database-pydantic-ai
 # database-pydantic-ai @ git+https://github.com/skolchin/database-pydantic-ai.git
 
-# Semantic layer
-# malloy
+# BSL
 # boring-semantic-layer[agent] @ git+https://github.com/skolchin/boring-semantic-layer.git
-

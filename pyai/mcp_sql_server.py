@@ -179,4 +179,10 @@ async def query(
     return result
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser()
+    parser.add_argument("--transport", choices=["stdio", "sse", "streamable-http"], default="streamable-http")
+    args = parser.parse_args()
+
+    mcp.run(transport=args.transport)

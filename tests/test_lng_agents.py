@@ -1,8 +1,9 @@
+# LangChain / LangGraph agents test suite
+#
+# Tests are parametrized by model and QA pairs defined in `test_agents.yaml`.
+#
 # pyright: reportCallIssue=false
-
-import re
 import json
-import time
 import logging
 import pandas as pd
 import parametrize_from_file as pff
@@ -10,103 +11,37 @@ from uuid import uuid4
 from langchain_core.runnables.config import RunnableConfig
 from typing import Dict, List
 
+from utils import json_to_frame, align_and_compare
+
 _logger = logging.getLogger(__name__)
-logging.getLogger("httpx").setLevel(logging.ERROR)
 
-def json_to_frame(response: str | dict | list) -> pd.DataFrame:
-
-    def clear(content: str) -> str:
-        # Remove invisible chars
-        content = re.sub(r'[\u200b-\u200d\ufeff]', '', content)
-
-        # Remove <think></think>
-        content = re.sub(r'<think>[\s\S]*?<\/think>', '', content)
-
-        # Extract from ```json ... ````
-        if "```json" in content and not content.endswith("```"):
-            content += "```"
-
-        if (m := re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", content)):
-            content = m.group(1)
-
-        return content
-
-    def clear_and_load(content: str) -> pd.DataFrame:
-        if not (cleaned := clear(content)):
-            raise ValueError("Empty response!")
-        try:
-            return pd.DataFrame(json.loads(cleaned))
-        except json.JSONDecodeError as ex:
-            _logger.error(f"JSON parsing error '{ex}' on content {cleaned}")
-            raise
-
-    match response:
-        case str():
-            return clear_and_load(response)
-
-        case dict():
-            for key in ["output", "result", "answer"]:
-                if key in response:
-                    return clear_and_load(response[key])
-            return pd.DataFrame(response)
-
-        case list():
-            return pd.DataFrame(response)
-        
-        case _:
-            raise ValueError(f"Don't know how to handle response of type {type(response)}")
-
-def align_and_compare(expected: pd.DataFrame, result: pd.DataFrame, aliases: Dict[str, List[str]] | None = None):
-
-    # Replace underscores with dots
-    result.rename(columns={col: col.replace("_", ".") for col in result.columns if '_' in col})
-
-    # Aliases define alternative names for given result column (e.g. Categories.TotalRevenue -> TotalRevenue)
-    # This provides some backlash for local LLMs
-    if aliases:
-        result.rename(columns={syn: col for col, synonyms in aliases.items() for syn in synonyms}, inplace=True)
-        result.rename(columns={syn.lower(): col for col, synonyms in aliases.items() for syn in synonyms}, inplace=True)
-
-    # Result must have all columns from expected
-    if (diff := set(expected.columns).difference(result.columns)):
-        _logger.error(f"Result is missing columns {diff} (got {result.columns.tolist()})")
-        raise ValueError(f"Result is missing required columns {diff}")
-
-    # Strip extra columns from result
-    if (diff := set(result.columns).difference(expected.columns)):
-        _logger.warning(f"Result contains extra columns: {diff}")
-        result = result[list(expected.columns)]
-
-    # Sort frames the same way
-    sort_columns = expected.select_dtypes(include=['object', 'string']).columns.tolist()
-    expected = expected.sort_values(sort_columns).reset_index(drop=True)
-    result = result.sort_values(sort_columns).reset_index(drop=True)
-
-    # Round all floats to zero digits to avoid floating comparsion
-    float_cols = expected.select_dtypes(include=['float']).columns
-    expected[float_cols] = expected[float_cols].round(0)
-    result[float_cols] = result[float_cols].round(0)
-
-    if not (diff := expected.compare(result)).empty:
-        _logger.error(f"Data difference:\n{diff}")
-        raise ValueError("Result data does not match expected data")
-
-def _bsl_agent_trial(question: str, query: str, expected: str, aliases: Dict[str, List[str]], bsl_agent, bsl_agent_prompt):
+def _lng_bsl_agent_trial(
+        question: str,
+        expected: str,
+        aliases: Dict[str, List[str]],
+        agent,
+        prompt_template):
+    """ Single BSL agent trial """
     _logger.info(f"Test question: '{question}'")
 
-    prompt = bsl_agent_prompt.format(question=question)
-    tool_output, response = bsl_agent.query(prompt)
+    prompt = prompt_template.format(question=question)
+    tool_output, response = agent.query(prompt)
     _logger.info(f"Response: {response}")
 
     expected_data = pd.DataFrame(json.loads(expected))
     response_data = json_to_frame(response)
     align_and_compare(expected_data, response_data, aliases)
 
-def _sql_agent_trial(question: str, query: str, expected: str, aliases: Dict[str, List[str]], sql_agent):
+def _lng_sql_agent_trial(
+        question: str, 
+        expected: str, 
+        aliases: Dict[str, List[str]], 
+        agent):
+    """ Single SQL agent trial """
     _logger.info(f"Test question: '{question}'")
 
     config = RunnableConfig({"configurable": {"thread_id": str(uuid4())}})
-    response = sql_agent.invoke({"input": question}, config=config)
+    response = agent.invoke({"input": question}, config=config)
     _logger.info(f"Response: {response}")
 
     expected_data = pd.DataFrame(json.loads(expected))
@@ -114,24 +49,32 @@ def _sql_agent_trial(question: str, query: str, expected: str, aliases: Dict[str
 
     align_and_compare(expected_data, response_data, aliases)
 
-@pff.parametrize(key="test_agents")
-def test_bsl_agent(question: str, query: str, expected: str, aliases: Dict[str, List[str]], bsl_agent, bsl_agent_prompt):
+@pff.parametrize(path="test_agents.yaml", key="test_agents")
+def test_lng_bsl_agent(question: str, query: str, expected: str, aliases: Dict[str, List[str]], lng_bsl_agent, lng_bsl_agent_prompt):
     """ Test BSL agent """
-    _bsl_agent_trial(question, query, expected, aliases, bsl_agent, bsl_agent_prompt)
+    _lng_bsl_agent_trial(question, expected, aliases, lng_bsl_agent, lng_bsl_agent_prompt)
 
-@pff.parametrize(key="test_agents")
-def test_sql_agent(question: str, query: str, expected: str, aliases: Dict[str, List[str]], sql_agent):
+@pff.parametrize(path="test_agents.yaml", key="test_agents")
+def test_lng_sql_agent(question: str, query: str, expected: str, aliases: Dict[str, List[str]], lng_sql_agent):
     """ Test SQL agent """
-    _sql_agent_trial(question, query, expected, aliases, sql_agent)
+    _lng_sql_agent_trial(question, expected, aliases, lng_sql_agent)
 
-@pff.parametrize(key="test_agents")
-def test_bsl_agent_perf(question: str, query: str, expected: str, aliases: Dict[str, List[str]], bsl_agent, bsl_agent_prompt, benchmark):
+@pff.parametrize(path="test_agents.yaml", key="test_agents")
+def test_lng_bsl_agent_perf(
+    question: str,
+    query: str,
+    expected: str,
+    aliases: Dict[str, List[str]],
+    lng_bsl_agent,
+    lng_bsl_agent_prompt,
+    benchmark,
+    num_perf_rounds):
     """ Benchmark BSL agent """
 
     status_list = []
     def safe_trial():
         try:
-            _bsl_agent_trial(question, query, expected, aliases, bsl_agent, bsl_agent_prompt)
+            _lng_bsl_agent_trial(question, expected, aliases, lng_bsl_agent, lng_bsl_agent_prompt)
             _logger.info("Test passed")
             status_list.append("PASSED")
 
@@ -142,19 +85,27 @@ def test_bsl_agent_perf(question: str, query: str, expected: str, aliases: Dict[
     benchmark.pedantic(
         safe_trial,
         iterations=1,
-        rounds=30,
+        rounds=num_perf_rounds,
         warmup_rounds=1)
 
-    benchmark.extra_info['run_status'] = status_list
+    # status list includes warmup round
+    benchmark.extra_info['run_status'] = status_list[1:]
 
-@pff.parametrize(key="test_agents")
-def test_sql_agent_perf(question: str, query: str, expected: str, aliases: Dict[str, List[str]], sql_agent, benchmark):
+@pff.parametrize(path="test_agents.yaml", key="test_agents")
+def test_lng_sql_agent_perf(
+    question: str,
+    query: str,
+    expected: str,
+    aliases: Dict[str, List[str]],
+    lng_sql_agent,
+    benchmark,
+    num_perf_rounds):
     """ Benchmark SQL agent """
 
     status_list = []
-    def safe_trial(question: str, query: str, expected: str, aliases: Dict[str, List[str]], sql_agent):
+    def safe_trial():
         try:
-            _sql_agent_trial(question, query, expected, aliases, sql_agent)
+            _lng_sql_agent_trial(question, expected, aliases, lng_sql_agent)
             _logger.info("Test passed")
             status_list.append("PASSED")
 
@@ -164,9 +115,9 @@ def test_sql_agent_perf(question: str, query: str, expected: str, aliases: Dict[
 
     benchmark.pedantic(
         safe_trial,
-        args=(question, query, expected, aliases, sql_agent),
         iterations=1,
-        rounds=30,
+        rounds=num_perf_rounds,
         warmup_rounds=1)
 
-    benchmark.extra_info['run_status'] = status_list
+    # status list includes warmup round
+    benchmark.extra_info['run_status'] = status_list[1:]

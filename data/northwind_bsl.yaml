@@ -92,7 +92,9 @@ Orders:
     OrderID: _.OrderID
     CustomerID: _.CustomerID
     EmployeeID: _.EmployeeID
-    OrderDate: _.OrderDate
+    OrderDate:
+      expr: _.OrderDate
+      is_time_dimension: true
     RequiredDate: _.RequiredDate
     ShippedDate: _.ShippedDate
     ShipVia: _.ShipVia
@@ -129,8 +131,6 @@ OrderDetails:
     TotalQuantitySold: _.Quantity.sum()
     TotalSales: (_.UnitPrice * _.Quantity).sum()
     TotalRevenue: ((_.UnitPrice * _.Quantity) * (1 - _.Discount)).sum()
-    DistinctOrders: _.count()
-    DistinctProductsSold: _.count()
   joins:
     Orders:
       model: Orders

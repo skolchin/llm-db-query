@@ -1,12 +1,19 @@
 # Pydantic AI agent with MCP support.
 #
-# An agent implementing a native language queries using Pydantic AI framework and SQL MCP server.
+# An agent implementing a native language queries using Pydantic AI framework
+# and SQL or BSL MCP server.
 #
-# Run as ordinary Python app or with uvicorn command:
+# Run as normal Python app or with uvicorn:
 #
-#     uvicorn pyai.mcp_sql_agent:app --host 127.0.0.1 --port 7932
+#     uvicorn pyai.mcp_agent:app --host 127.0.0.1 --port 7932
 #
-# MCP server is started by running `mcp_sql_server.py`.
+# To start MCP server run either
+#
+#   python pyai/mcp_sql_server.py
+#
+# or
+#
+#   python pyai/mcp_bsl_server.py
 #
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStreamableHTTP

@@ -4,9 +4,8 @@ import os
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from langchain_deepseek import ChatDeepSeek
-from pydantic import BaseModel
 from langchain_core.language_models.chat_models import BaseChatModel
-from typing import cast, Literal, Dict, List, Any
+from typing import cast, Literal
 
 load_dotenv()
 
@@ -29,8 +28,8 @@ def get_model_qualified_name(model_type: ModelType, model_name: str | None = Non
             return f"deepseek:{model_name}"
 
         case "yandex":
-            # YandexGPT provider - not supported
-            raise ValueError("YandexGPT is not supported as generic model provider, use `get_model`")
+            # Yandex provider - not supported
+            raise ValueError("Yandex is not supported as generic model provider, use `get_model`")
 
         case _:
             raise ValueError(f"Unknown or unconfigured model {model_type}")
@@ -57,7 +56,7 @@ def get_model(model_type: ModelType, model_name: str | None = None) -> BaseChatM
             )
 
         case "yandex" if "YANDEX_API_KEY" in os.environ and "YANDEX_FOLDER_ID" in os.environ:
-            # YandexGPT provider
+            # Yandex provider
             from yandex_ai_studio_sdk import AIStudio
             from yandex_ai_studio_sdk.auth import APIKeyAuth
 

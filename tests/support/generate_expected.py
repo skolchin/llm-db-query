@@ -1,8 +1,13 @@
+# Generate datasets with expected query results using queriers from `tests/test_agents.yaml`.
+# Will save all original test file content along with the datasets to `tests/test_agents_upd.yaml`.
+#
+# Uses `ruamel.yaml` because standard python_yaml does not keep comments and
+# is pretty bad with long string formatting.
 import os
 import json
 import pandas as pd
-from sqlalchemy import create_engine
 from ruamel.yaml import YAML
+from sqlalchemy import create_engine
 from ruamel.yaml.scalarstring import LiteralScalarString
 
 yaml = YAML()
@@ -11,7 +16,7 @@ DB_FILENAME = './data/northwind.db'
 db_file = os.path.abspath(DB_FILENAME)
 engine = create_engine(f"sqlite:///{db_file}?mode=ro")
 
-with open("tests/test_lng_agents.yaml", "rt") as fp:
+with open("tests/test_agents.yaml", "rt") as fp:
     qa_content = yaml.load(fp)
 
 qa_key = list(qa_content.keys())[0]
@@ -33,5 +38,5 @@ with engine.connect() as con:
 
         qa_result_list.append(qa_result)
 
-with open("tests/test_lng_agents_upd.yaml", "wt") as fp:
+with open("tests/test_agents_upd.yaml", "wt") as fp:
     yaml.dump({qa_key: qa_result_list}, fp)

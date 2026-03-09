@@ -1,0 +1,6 @@
+# Testing
+pytest
+ruamel.yaml
+pytest_asyncio
+testcontainers
+parametrize_from_file

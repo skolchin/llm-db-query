@@ -50,22 +50,33 @@ test_agents:
       - OrderDetails.Revenue
       - OrderDetails.TotalRevenue
 
-# - question: Who are the top 5 customers by total spending (including discount) 
-#     in 1997?
-#   query: |
-#     SELECT 
-#         c.CustomerID,
-#         c.CompanyName,
-#         SUM(od.Quantity * od.UnitPrice * (1 - od.Discount)) AS TotalSpent
-#     FROM Customers c
-#     JOIN Orders o ON c.CustomerID = o.CustomerID
-#     JOIN OrderDetails od ON o.OrderID = od.OrderID
-#     WHERE strftime('%Y', o.OrderDate) = '1997'
-#     GROUP BY c.CustomerID, c.CompanyName
-#     ORDER BY TotalSpent DESC
-#     LIMIT 5;
-#   expected: |-
-#     []
+- question: Who are the top 5 customers by total revenue in 2016?
+  query: |
+    SELECT 
+        c.CompanyName as "Customers.CompanyName",
+        SUM(od.Quantity * od.UnitPrice * (1 - od.Discount)) AS "Customers.TotalRevenue"
+    FROM Customers c
+    JOIN Orders o ON c.CustomerID = o.CustomerID
+    JOIN OrderDetails od ON o.OrderID = od.OrderID
+    WHERE strftime('%Y', o.OrderDate) = '2016'
+    GROUP BY c.CustomerID, c.CompanyName
+    ORDER BY "Customers.TotalRevenue" DESC
+    LIMIT 5
+  expected: |-
+    [{"Customers.CompanyName": "Ernst Handel", "Customers.TotalRevenue": 15568.065},
+     {"Customers.CompanyName": "QUICK-Stop", "Customers.TotalRevenue": 11950.08},
+     {"Customers.CompanyName": "Rattlesnake Canyon Grocery", "Customers.TotalRevenue": 10475.78},
+     {"Customers.CompanyName": "Save-a-lot Markets", "Customers.TotalRevenue": 10338.265},
+     {"Customers.CompanyName": "Piccolo und mehr", "Customers.TotalRevenue": 10033.28}]
+  aliases:
+    Customers.CompanyName:
+      - Customer
+      - CompanyName
+    Customers.TotalRevenue:
+      - TotalRevenue
+      - Customers.TotalRevenue
+      - OrderDetails.TotalRevenue
+
 # - question: Which suppliers supply more than 3 products, and what are the total 
 #     number of products they supply and the average price of those products?
 #   query: |
@@ -80,7 +91,11 @@ test_agents:
 #     HAVING COUNT(p.ProductID) > 3
 #     ORDER BY ProductCount DESC;
 #   expected: |-
-#     [{"SupplierID": 7, "CompanyName": "Pavlova, Ltd.", "ProductCount": 5, "AvgPrice": 35.57}, {"SupplierID": 12, "CompanyName": "Plutzer Lebensmittelgroßmärkte AG", "ProductCount": 5, "AvgPrice": 44.678000000000004}, {"SupplierID": 2, "CompanyName": "New Orleans Cajun Delights", "ProductCount": 4, "AvgPrice": 20.35}, {"SupplierID": 8, "CompanyName": "Specialty Biscuits, Ltd.", "ProductCount": 4, "AvgPrice": 28.175}]
+#     [{"SupplierID": 7, "CompanyName": "Pavlova, Ltd.", "ProductCount": 5, "AvgPrice": 35.57},
+#      {"SupplierID": 12, "CompanyName": "Plutzer Lebensmittelgroßmärkte AG", "ProductCount": 5, "AvgPrice": 44.68},
+#      {"SupplierID": 2, "CompanyName": "New Orleans Cajun Delights", "ProductCount": 4, "AvgPrice": 20.35},
+#      {"SupplierID": 8, "CompanyName": "Specialty Biscuits, Ltd.", "ProductCount": 4, "AvgPrice": 28.175}]
+
 # - question: Which products have never been ordered?
 #   query: |
 #     SELECT 
@@ -91,6 +106,7 @@ test_agents:
 #     WHERE od.ProductID IS NULL;
 #   expected: |-
 #     []
+#
 # - question: For each customer, show the total number of orders they have placed,
 #     the total amount they have spent (including discount), and the date of their
 #     most recent order.
@@ -124,6 +140,7 @@ test_agents:
 #     LIMIT 10;
 #   expected: |-
 #     [{"Product1": "Sir Rodney's Scones", "Product2": "Sirop d'érable", "TimesOrderedTogether": 8}, {"Product1": "Pavlova", "Product2": "Gorgonzola Telino", "TimesOrderedTogether": 7}, {"Product1": "Camembert Pierrot", "Product2": "Flotemysost", "TimesOrderedTogether": 6}, {"Product1": "Gorgonzola Telino", "Product2": "Mozzarella di Giovanni", "TimesOrderedTogether": 6}, {"Product1": "Nord-Ost Matjeshering", "Product2": "Tourtière", "TimesOrderedTogether": 6}, {"Product1": "Pavlova", "Product2": "Camembert Pierrot", "TimesOrderedTogether": 6}, {"Product1": "Pavlova", "Product2": "Tarte au sucre", "TimesOrderedTogether": 6}, {"Product1": "Alice Mutton", "Product2": "Geitost", "TimesOrderedTogether": 5}, {"Product1": "Chang", "Product2": "Gorgonzola Telino", "TimesOrderedTogether": 5}, {"Product1": "Chang", "Product2": "Pavlova", "TimesOrderedTogether": 5}]
+#
 # - question: What were the total monthly sales (revenue after discount) for the 
 #     year 1997, displayed with month names?
 #   query: |
@@ -150,6 +167,7 @@ test_agents:
 #     ORDER BY strftime('%m', o.OrderDate);
 #   expected: |-
 #     []
+#
 # - question: Which customers have placed orders for products from more than 5 
 #     different categories?
 #   query: |

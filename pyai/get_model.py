@@ -17,20 +17,21 @@ ModelType = Literal['ollama', 'deepseek', 'yandex']
 dotenv.load_dotenv()
 
 MODEL_SETTINGS = ModelSettings(
-    temperature=0.1,
+    temperature=0.0,
     timeout=60,
 )
 """ Model settings (fixed) """
 
-def get_model(model_type: ModelType) -> OpenAIChatModel | None:
+def get_model(model_type: ModelType, model_name: str | None = None) -> OpenAIChatModel | None:
     """ Return LLM instance """
 
     match model_type:
         case 'ollama':
             # Local Ollama instance provider
+            model_name = model_name or os.environ.get("OLLAMA_MODEL") or "gpt-oss:20b"
             return OpenAIChatModel(
-                model_name=os.environ.get('OLLAMA_MODEL', 'gpt-oss:20b'),
-                provider= OllamaProvider('http://localhost:11434/v1'),
+                model_name=model_name,
+                provider=OllamaProvider('http://localhost:11434/v1'),
                 settings=MODEL_SETTINGS,
             )
 
@@ -39,24 +40,26 @@ def get_model(model_type: ModelType) -> OpenAIChatModel | None:
             if not 'DEEPSEEK_API_KEY' in os.environ:
                 return None
             
+            model_name = model_name or os.environ.get("DEEPSEEK_MODEL") or "deepseek-chat"
             return OpenAIChatModel(
-                model_name=os.environ.get('DEEPSEEK_MODEL', 'deepseek-chat'),
+                model_name=model_name,
                 provider=DeepSeekProvider(api_key=os.environ['DEEPSEEK_API_KEY']),
                 settings=MODEL_SETTINGS,
             )
 
         case 'yandex':
-            # OpenAI-compatible YandexGPT provider
+            # OpenAI-compatible Yandex provider
             if not 'YANDEX_API_KEY' in os.environ or not 'YANDEX_FOLDER_ID' in os.environ:
                 return None
 
+            model_name = model_name or os.environ.get("YANDEX_MODEL") or "yandex-gpt"
             client = AsyncOpenAI(
                 api_key=os.environ['YANDEX_API_KEY'],
                 base_url='https://ai.api.cloud.yandex.net/v1',
                 project=os.environ['YANDEX_FOLDER_ID'],
             )
             return OpenAIChatModel(
-                model_name=f"gpt://{os.environ['YANDEX_FOLDER_ID']}/{os.environ.get('YANDEX_MODEL', 'yandexgpt')}/latest",
+                model_name=f"gpt://{os.environ['YANDEX_FOLDER_ID']}/{model_name}/latest",
                 provider=OpenAIProvider(openai_client=client),
                 settings=MODEL_SETTINGS,
             )

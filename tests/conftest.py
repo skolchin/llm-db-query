@@ -1,13 +1,15 @@
+# PyTest fixtures
+
 import os
+import logging
 import pytest
 import logging
-import subprocess
 from pathlib import Path
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from lng.get_model import get_model_qualified_name, get_model
+from utils import stop_ollamas
 
 _logger = logging.getLogger(__name__)
+logging.getLogger("httpx").setLevel(logging.ERROR)
 
 # ("deepseek", "deepseek-reasoner") removed as it's not good with tool calls
 # see https://github.com/langchain-ai/langchain/issues/34166
@@ -16,6 +18,23 @@ MODELS = [("ollama", "gpt-oss:20b"),
           ("deepseek", "deepseek-chat"),]
 
 MODEL_IDS = [v[1] for v in MODELS]
+
+PYAI_SERVERS = [("sql", "pyai/mcp_sql_server.py"),
+                ("bsl", "pyai/mcp_bsl_server.py")]
+
+PYAI_SERVER_IDS = [v[0] for v in PYAI_SERVERS]
+
+@pytest.fixture(scope="session")
+def num_perf_rounds(pytestconfig) -> int:
+    """ Number of performance testing rounds.
+
+    Set by `--benchmark-min-rounds` pytest option (command line or pytest.ini).
+    Default is 30.
+    """
+    if not (sess := getattr(pytestconfig, "_benchmarksession", None)):
+        raise ValueError("Pytest-benchmark is not available for this session")
+    
+    return sess.options.get('min_rounds', 30)
 
 @pytest.fixture(scope='session')
 def sqldb_filename():
@@ -29,29 +48,26 @@ def sqldb_database(sqldb_filename):
     return SQLDatabase.from_uri(f"sqlite:///{sqldb_filename}?mode=ro", engine_args={"echo": False})
 
 @pytest.fixture(params=MODELS, ids=MODEL_IDS)
-def agent_model(request):
-    """Agent LLM instance (parametrized)"""
+def lng_agent_model(request):
+    """LNG agent LLM instance (parametrized)"""
+    from lng.get_model import get_model
+
     _logger.info(f"Running test with '{request.param[0]}:{request.param[1]}' agent")
-    try:
-        yield get_model(request.param[0], request.param[1])
-    finally:
-        # Stop all running ollamas
-        if request.param[0] == "ollama":
-            subprocess.run("ollama ps | awk 'NR>1 {print $1}' | xargs -L 1 ollama stop", shell=True, check=False)
+    yield get_model(request.param[0], request.param[1])
+    stop_ollamas(request.param[0])
 
 @pytest.fixture(params=MODELS, ids=MODEL_IDS)
-def agent_model_qual_name(request):
-    """Agent LLM qualified name (parametrized)"""
+def lng_agent_model_qual_name(request):
+    """LNG agent LLM qualified name (parametrized)"""
+    from lng.get_model import get_model_qualified_name
+
     _logger.info(f"Running test with '{request.param[0]}:{request.param[1]}' agent")
-
     yield get_model_qualified_name(request.param[0], request.param[1])
-
-    # Stop all running ollamas
-    if request.param[0] == "ollama":
-        subprocess.run("ollama ps | awk 'NR>1 {print $1}' | xargs -L 1 ollama stop", shell=True, check=False)
+    stop_ollamas(request.param[0])
 
 @pytest.fixture(scope='session')
-def bsl_agent_prompt() -> str:
+def lng_bsl_agent_prompt() -> str:
+    """ BSL LNG agent prompt template """
     return """
 Answer to user question: {question}.
 Return ONLY valid JSON array.
@@ -61,7 +77,8 @@ All column names MUST BE in CamelCase (for example CompanyName, OrderCount). No 
 """
 
 @pytest.fixture(scope='session')
-def sql_agent_prompt() -> str:
+def lng_sql_agent_prompt() -> str:
+    """ SQL LNG agent prompt """
     return """
 You are a SQLite database query agent.
 
@@ -129,13 +146,13 @@ Example:
 """
 
 @pytest.fixture
-def bsl_agent(agent_model_qual_name):
-    """ BSL agent instance """
+def lng_bsl_agent(lng_agent_model_qual_name):
+    """ LNG BSL agent instance """
     from boring_semantic_layer.agents.backends.langgraph import LangGraphBackend
 
     agent = LangGraphBackend(
         model_path=Path('./data/northwind_bsl.yaml'),
-        llm_model=agent_model_qual_name,
+        llm_model=lng_agent_model_qual_name,
         chart_backend="plotext",
         profile="northwind_duckdb",
         profile_file=Path("./data/northwind_profile.yaml"),
@@ -144,14 +161,16 @@ def bsl_agent(agent_model_qual_name):
     yield agent
 
 @pytest.fixture
-def sql_agent(agent_model, sqldb_database, sql_agent_prompt):
+def lng_sql_agent(lng_agent_model, sqldb_database, lng_sql_agent_prompt):
+    """ LNG SQL agent instance """
+    from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
     from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
     from langchain_community.agent_toolkits.sql.base import create_sql_agent
 
-    toolkit = SQLDatabaseToolkit(db=sqldb_database, llm=agent_model)
+    toolkit = SQLDatabaseToolkit(db=sqldb_database, llm=lng_agent_model)
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", sql_agent_prompt),
+        ("system", lng_sql_agent_prompt),
         ("human", "{input}"),
         MessagesPlaceholder("agent_scratchpad"),
     ])
@@ -159,9 +178,55 @@ def sql_agent(agent_model, sqldb_database, sql_agent_prompt):
     agent = create_sql_agent(
         top_k=1000,
         prompt=prompt,
-        llm=agent_model,
+        llm=lng_agent_model,
         toolkit=toolkit,
         agent_type="tool-calling",
         verbose=True,
     )
     return agent
+
+@pytest.fixture(scope='session')
+def pyai_agent_prompt() -> str:
+    """ PyAI agent prompt template """
+    return """
+Answer to user question: {question}.
+Return ONLY valid JSON array.
+NO explanations. NO comments.
+Each array element MUST correspond to one row.
+All column names MUST BE in CamelCase (for example: CompanyName, OrderCount). No underscores allowed.
+DO NOT generate any charts.
+"""
+
+@pytest.fixture(params=MODELS, ids=MODEL_IDS)
+def pyai_agent_model(request):
+    """PyAI agent LLM instance (parametrized)"""
+    from pyai.get_model import get_model
+
+    _logger.info(f"Running test with '{request.param[0]}:{request.param[1]}' agent")
+    yield get_model(request.param[0], request.param[1])
+    stop_ollamas(request.param[0])
+
+@pytest.fixture(params=PYAI_SERVERS, ids=PYAI_SERVER_IDS)
+def pyai_server(request):
+    """ PyAI MCP server instance (parametrized) """
+    from pydantic_ai.mcp import MCPServerStdio
+
+    server = MCPServerStdio(
+        "python",
+        args=[request.param[1], "--transport", "stdio"],
+        timeout=60,
+    )
+    yield server
+
+@pytest.fixture
+def pyai_agent(pyai_agent_model, pyai_server):
+    """ PyAI agent with MCP server toolset"""
+    from pydantic_ai import Agent
+
+    agent = Agent(pyai_agent_model, toolsets=[pyai_server])
+
+    @agent.instructions
+    def mcp_server_instructions():
+        return pyai_server.instructions
+
+    yield agent
