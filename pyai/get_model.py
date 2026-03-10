@@ -47,6 +47,21 @@ def get_model(model_type: ModelType, model_name: str | None = None) -> OpenAICha
                 settings=MODEL_SETTINGS,
             )
 
+        case "openai" if "OPENAI_API_KEY" in os.environ:
+            # OpenAI provider
+
+            model_name = model_name or os.environ.get("OPENAI_MODEL") or "o3-mini"
+            client = AsyncOpenAI(
+                api_key=os.environ['OPENAI_API_KEY'],
+                base_url=os.environ.get("OPENAI_BASE_URL"),
+                project=os.environ.get("OPENAI_FOLDER_ID"),
+            )
+            return OpenAIChatModel(
+                model=model_name,
+                provider=OpenAIProvider(openai_client=client),
+                settings=MODEL_SETTINGS,
+            )
+
         case 'yandex':
             # OpenAI-compatible Yandex provider
             if not 'YANDEX_API_KEY' in os.environ or not 'YANDEX_FOLDER_ID' in os.environ:

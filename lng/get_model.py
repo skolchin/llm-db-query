@@ -3,13 +3,14 @@
 import os
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 from langchain_deepseek import ChatDeepSeek
 from langchain_core.language_models.chat_models import BaseChatModel
 from typing import cast, Literal
 
 load_dotenv()
 
-ModelType = Literal["ollama", "deepseek", "yandex"]
+ModelType = Literal["ollama", "openai", "deepseek", "yandex"]
 """ Allowed model types """
 
 def get_model_qualified_name(model_type: ModelType, model_name: str | None = None) -> str:
@@ -20,6 +21,12 @@ def get_model_qualified_name(model_type: ModelType, model_name: str | None = Non
             # Local Ollama instance provider
             model_name = model_name or os.environ.get("OLLAMA_MODEL") or "gpt-oss:20b"
             return f"ollama:{model_name}"
+
+        case "openai" if "OPENAI_API_KEY" in os.environ:
+            # OpenAI provider
+            assert "OPENAI_API_KEY" in os.environ
+            model_name = model_name or os.environ.get("OPENAI_MODEL") or "o3-mini"
+            return f"openai:{model_name}"
 
         case "deepseek" if "DEEPSEEK_API_KEY" in os.environ:
             # Deepseek provider
@@ -46,11 +53,22 @@ def get_model(model_type: ModelType, model_name: str | None = None) -> BaseChatM
                 temperature=0.,
             )
 
+        case "openai" if "OPENAI_API_KEY" in os.environ:
+            # OpenAI provider
+            assert "OPENAI_API_KEY" in os.environ
+            model_name = model_name or os.environ.get("OPENAI_MODEL") or "o3-mini"
+            return ChatOpenAI(
+                model=model_name,
+                api_key=os.environ["OPENAI_API_KEY"], # type:ignore
+                base_url=os.environ.get("OPENAI_BASE_URL"), # type:ignore
+                temperature=0.,
+            )
+
         case "deepseek" if "DEEPSEEK_API_KEY" in os.environ:
             # Deepseek provider
             model_name = model_name or os.environ.get("DEEPSEEK_MODEL") or "deepseek-chat"
             return ChatDeepSeek(
-                model=os.environ.get("DEEPSEEK_MODEL", model_name),
+                model=model_name,
                 api_key=os.environ["DEEPSEEK_API_KEY"], # type:ignore
                 temperature=0.,
             )
