@@ -1,6 +1,7 @@
 # Model support functions
 
 import os
+import logging
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
@@ -9,6 +10,8 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from typing import cast, Literal
 
 load_dotenv()
+
+_logger = logging.getLogger(__name__)
 
 ModelType = Literal["ollama", "openai", "deepseek", "yandex"]
 """ Allowed model types """
@@ -48,6 +51,7 @@ def get_model(model_type: ModelType, model_name: str | None = None) -> BaseChatM
         case "ollama":
             # Local Ollama instance provider
             model_name = model_name or os.environ.get("OLLAMA_MODEL") or "gpt-oss:20b"
+            _logger.debug(f"Ollama model {model_name} is been created")
             return ChatOllama(
                 model=model_name,
                 temperature=0.,
@@ -57,6 +61,7 @@ def get_model(model_type: ModelType, model_name: str | None = None) -> BaseChatM
             # OpenAI provider
             assert "OPENAI_API_KEY" in os.environ
             model_name = model_name or os.environ.get("OPENAI_MODEL") or "o3-mini"
+            _logger.debug(f"Generic OpenAI model {model_name} is been created, base url is {os.environ.get('OPENAI_BASE_URL')}")
             return ChatOpenAI(
                 model=model_name,
                 api_key=os.environ["OPENAI_API_KEY"], # type:ignore
@@ -67,6 +72,7 @@ def get_model(model_type: ModelType, model_name: str | None = None) -> BaseChatM
         case "deepseek" if "DEEPSEEK_API_KEY" in os.environ:
             # Deepseek provider
             model_name = model_name or os.environ.get("DEEPSEEK_MODEL") or "deepseek-chat"
+            _logger.debug(f"DeepSeek model {model_name} is been created")
             return ChatDeepSeek(
                 model=model_name,
                 api_key=os.environ["DEEPSEEK_API_KEY"], # type:ignore

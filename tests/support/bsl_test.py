@@ -1,5 +1,6 @@
 # BSL model test queries
 from boring_semantic_layer import from_yaml
+from datetime import datetime
 
 models = from_yaml(
     './data/northwind_bsl.yaml', 
@@ -24,6 +25,17 @@ print(
     models['Products'] \
     .group_by('Country') \
     .aggregate('Products.ProductCount').execute())
+print()
+
+print("Sales in 2016 by category:")
+print(
+    models['OrderDetails'].query(
+        dimensions=['Categories.CategoryName', 'Orders.OrderDate'],
+        measures=['OrderDetails.TotalRevenue'],
+        time_grain='TIME_GRAIN_YEAR',
+        time_range={'start': '2016-01-01T00:00:00Z', 'end': '2016-12-31T23:59:59Z'},
+        order_by=[('OrderDetails.TotalRevenue', 'desc')],
+    ).execute())
 print()
 
 print("Sales per category in 2016:")

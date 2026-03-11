@@ -6,6 +6,7 @@
 #
 import os
 import json
+import logging
 import altair as alt
 import plotly.graph_objects as go
 import streamlit as st
@@ -23,6 +24,14 @@ from langchain_core.messages import (
 from langchain_core.runnables.config import RunnableConfig
 from boring_semantic_layer.agents.backends.langgraph import LangGraphBackend
 from typing import Generator, List, Dict, Any
+
+logging.basicConfig(
+    format='[%(levelname).1s %(asctime)s %(name)s] %(message)s',
+    level=logging.DEBUG,
+    force=True)
+logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.ERROR)
+logging.getLogger("httpcore.http11").setLevel(logging.ERROR)
+logging.getLogger("openai._base_client").setLevel(logging.ERROR)
 
 # Uncomment to use sql agent
 # from sql_agent import app, SYSTEM_PROMPT, MODEL_TYPE

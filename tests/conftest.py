@@ -190,10 +190,8 @@ def pyai_agent_prompt() -> str:
     """ PyAI agent prompt template """
     return """
 Answer to user question: {question}.
-Return ONLY valid JSON array.
-NO explanations. NO comments.
-Each array element MUST correspond to one row.
-All column names MUST BE in CamelCase (for example: CompanyName, OrderCount). No underscores allowed.
+Return ONLY valid JSON array. Each array element MUST correspond to one row. NO explanations. NO comments.
+Use fully-qualified attributes names when querying (for example: Category.CategoryName, OrderDetails.TotalRevenue).
 DO NOT generate any charts.
 """
 
