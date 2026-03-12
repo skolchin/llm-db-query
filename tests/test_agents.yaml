@@ -75,6 +75,7 @@ test_agents:
     Customers.TotalRevenue:
       - TotalRevenue
       - Customers.TotalRevenue
+      - Orders.TotalRevenue
       - OrderDetails.TotalRevenue
 
 # - question: Which suppliers supply more than 3 products, and what are the total 

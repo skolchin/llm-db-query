@@ -9,18 +9,19 @@
 #
 import asyncio
 import logging
+from pathlib import Path
 from dataclasses import dataclass
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from mcp.server.session import ServerSession
 from mcp.server.fastmcp import FastMCP, Context
 from database_pydantic_ai import SQLiteDatabase, QueryResult, SchemaInfo, TableInfo
-from typing import List, Tuple, Any
+from typing import List
 
 logging.getLogger('database_pydantic_ai.sql.backends.sqlite').setLevel(logging.DEBUG)
 
 # Constants
-DB_FILENAME = './data/northwind.db'
+DB_FILENAME = str(Path(__file__).parent.parent / 'data/northwind.db')
 """ SQLite database """
 
 SYSTEM_PROMPT = '''
